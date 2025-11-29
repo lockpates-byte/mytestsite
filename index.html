@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starlight & Memories</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Fonts - Keeping the playful font for UI, but the scene will be more realistic */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        :root {
+            /* Natural Deep Night Sky Gradient */
+            --sky-bg: linear-gradient(to bottom, #000000 0%, #050A1E 40%, #0a1128 70%, #1a2c5a 100%);
+            /* Dark Sandy Beach */
+            --beach-bg: linear-gradient(to top, #0f0c08, #1c1917);
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
+            background-color: #020617;
+        }
+
+        h1, h2, h3, .font-cartoon {
+            font-family: 'Fredoka One', cursive;
+            letter-spacing: 1px;
+        }
+
+        /* --- SECTION 1: CUSTOMIZABLE ASSETS & ANIMATION --- */
+        
+        /* 1. Sky */
+        .sky-layer {
+            background: var(--sky-bg);
+            background-size: cover;
+            background-position: center;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        /* 2. Stars (Realistic & Sharp) */
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle var(--duration) ease-in-out infinite;
+            animation-delay: var(--delay);
+            box-shadow: 0 0 2px rgba(255, 255, 255, 0.8); /* Softer glow */
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: var(--max-opacity); transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+
+        /* 3. Shooting Stars (Constant Speed + Blink Exit) */
+        .shooting-star {
+            position: absolute;
+            height: 2px; /* Thinner, realistic tail */
+            background: linear-gradient(90deg, rgba(255,255,255,1), rgba(255,255,255,0));
+            border-radius: 999px;
+            filter: drop-shadow(0 0 4px rgba(255,255,255,0.9)); /* Glowing head */
+            opacity: 0;
+            cursor: pointer;
+            z-index: 20;
+            pointer-events: auto;
+            transform-origin: left center;
+        }
+        
+        /* Bright head of the star */
+        .shooting-star::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Hitbox for easier clicking */
+        .shooting-star-hitbox {
+            position: absolute;
+            top: -30px;
+            bottom: -30px;
+            left: -30px;
+            right: -30px;
+            cursor: pointer;
+        }
+
+        /* Animation: Constant Speed across screen. */
+        @keyframes shoot-blink {
+            0% {
+                transform: translate(0, 0) rotate(-25deg) scale(1);
+                opacity: 1;
+            }
+            70% {
+                opacity: 1;
+            }
+            75% { opacity: 0.2; } /* Blink */
+            80% { opacity: 1; }   /* Blink */
+            85% { opacity: 0; }   /* Blink */
+            90% { opacity: 0.8; } /* Blink */
+            100% {
+                transform: translate(-120vh, 60vh) rotate(-25deg) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        /* 4. Sea & Beach - Vertical Tide Motion */
+        .ocean-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25vh;
+            z-index: 10;
+            overflow: hidden;
+            pointer-events: none;
+            /* Gradient overlay to blend horizon seamlessly */
+            background: linear-gradient(to bottom, #1a2c5a 0%, #1a2c5a 40%, transparent 100%);
+        }
+
+        /* Shimmering surface effect (Light changes) */
+        .ocean-surface {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center top, rgba(255,255,255,0.05), transparent 70%);
+            animation: ocean-pulse 6s ease-in-out infinite alternate;
+        }
+
+        @keyframes ocean-pulse {
+            0% { opacity: 0.3; transform: scale(1); }
+            100% { opacity: 0.6; transform: scale(1.05); }
+        }
+
+        /* The Vertical Tide Wave */
+        .tide-wave {
+            position: absolute;
+            bottom: 11vh; /* Starts just above the beach line */
+            left: 0;
+            width: 100%;
+            height: 15vh;
+            z-index: 16; /* Sits ON TOP of the beach to wash over it */
+            /* Gradient simulating the white foam edge fading into water */
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 40%, rgba(190, 210, 255, 0.2) 80%, rgba(255,255,255,0.4) 100%);
+            border-bottom: 2px solid rgba(255,255,255,0.15); /* Subtle foam line */
+            border-radius: 0 0 50% 50% / 0 0 20% 20%; /* Slight curve */
+            opacity: 0;
+            /* 8s cycle: 1 wave every 8 seconds */
+            animation: tide-wash 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes tide-wash {
+            0% {
+                transform: translateY(0) scaleY(0.8);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1; /* Wave appears and hits shore */
+            }
+            50% {
+                /* Moves DOWN (positive Y) onto the beach */
+                transform: translateY(6vh) scaleY(1);
+                opacity: 0.6;
+            }
+            100% {
+                /* Fades out as it recedes/dissipates */
+                transform: translateY(8vh) scaleY(1.1);
+                opacity: 0;
+            }
+        }
+
+        /* Container for custom sea sprite */
+        .sea-sprite {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.8;
+            display: none; 
+        }
+
+        .beach {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 12vh;
+            background: var(--beach-bg);
+            background-size: cover;
+            background-position: center bottom;
+            z-index: 15;
+            box-shadow: 0 -5px 30px rgba(0,0,0,0.8);
+        }
+
+        /* Person Container */
+        .person-container {
+            position: absolute;
+            z-index: 20;
+            bottom: 6vh;
+            left: 10vw;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        
+        .person-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.8));
+        }
+
+        /* --- UI ELEMENTS --- */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+        }
+
+        /* Modal Transitions */
+        .modal-enter { opacity: 0; transform: scale(0.9); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms, transform 300ms; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 5px; border: 2px solid #0f172a; }
+
+        .settings-input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid #475569;
+            background: #1e293b;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .settings-input:focus {
+            outline: none;
+            border-color: #818cf8;
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- ========================================== -->
+    <!-- SETTINGS BUTTON & PANEL                    -->
+    <!-- ========================================== -->
+    <div class="fixed top-6 left-6 z-50">
+        <button onclick="toggleSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full p-3 shadow-lg transition-transform hover:rotate-90 border-2 border-indigo-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+        <div class="bg-slate-800 border-2 border-slate-600 p-6 rounded-2xl max-w-sm w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-cartoon text-indigo-300">Customize Scene</h3>
+                <button onclick="toggleSettings()" class="text-slate-400 hover:text-white">&times;</button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold">Sky Sprite (URL)</label>
+                    <input type="text" id="input-sky" class="settings-input" placeholder="Paste image URL...">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold">Sea Sprite (URL)</label>
+                    <input type="text" id="input-sea" class="settings-input" placeholder="Paste image URL...">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold">Beach Sprite (URL)</label>
+                    <input type="text" id="input-beach" class="settings-input" placeholder="Paste image URL...">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold">Person Sprite (URL)</label>
+                    <input type="text" id="input-person" class="settings-input" placeholder="Paste image URL...">
+                </div>
+                <button onclick="applySettings()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold shadow-md">Apply Changes</button>
+                <button onclick="resetSettings()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg text-slate-300">Reset to Default</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO CONTROLS -->
+    <div class="fixed top-6 right-6 z-50">
+        <button id="music-toggle" onclick="toggleMusic()" class="bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full p-3 transition-all border border-white/10 shadow-lg">
+            <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+            <svg id="icon-pause" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
+        <audio id="bg-music" loop>
+            <source src="https://cdn.pixabay.com/download/audio/2022/03/09/audio_822ca2b672.mp3" type="audio/mp3">
+        </audio>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION 1: THE STARRY SKY & WISHES         -->
+    <!-- ========================================== -->
+    <section id="sky-section" class="relative w-full h-screen overflow-hidden flex flex-col items-center justify-end">
+        
+        <!-- Sky Layer (Customizable) -->
+        <div id="sky-layer" class="sky-layer"></div>
+
+        <!-- Star Container -->
+        <div id="star-field" class="absolute inset-0 z-0 pointer-events-none"></div>
+
+        <!-- Shooting Star Container -->
+        <div id="shooting-star-container" class="absolute inset-0 z-10 overflow-hidden pointer-events-none"></div>
+
+        <!-- Hint Text -->
+        <div class="absolute top-24 left-0 right-0 text-center z-20 px-4 opacity-90 animate-pulse pointer-events-none">
+            <h1 class="text-4xl md:text-6xl font-cartoon mb-2 text-white drop-shadow-[0_4px_10px_rgba(255,255,255,0.3)]">STARDUST WISHES</h1>
+            <p class="text-lg text-indigo-100 font-bold drop-shadow-md tracking-wider">Tap the falling stars!</p>
+        </div>
+
+        <!-- Ocean & Waves -->
+        <div class="ocean-container" id="ocean-container">
+            <!-- Custom Sea Sprite (Hidden by default) -->
+            <div id="sea-sprite" class="sea-sprite"></div>
+            
+            <!-- Shimmering Water Surface -->
+            <div class="ocean-surface"></div>
+
+            <!-- Single Vertical Tide Wave -->
+            <div class="tide-wave"></div>
+        </div>
+
+        <!-- Beach Ground -->
+        <div id="beach" class="beach"></div>
+
+        <!-- Person Container -->
+        <div class="person-container">
+            <!-- Default SVG Silhouette -->
+            <svg id="person-default" viewBox="0 0 100 100" class="fill-current text-black w-full h-full drop-shadow-2xl opacity-90" preserveAspectRatio="none">
+                <path d="M30,100 L80,100 L90,90 Q90,70 80,60 Q70,50 60,50 Q50,50 45,60 L45,70 Q40,65 30,65 Q20,65 20,80 L30,100 Z" />
+                <circle cx="60" cy="40" r="12" />
+            </svg>
+            <!-- Custom Image (Hidden by default) -->
+            <img id="person-custom" src="" alt="" class="person-img hidden">
+        </div>
+
+        <!-- Wish Modal -->
+        <div id="wish-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300">
+            <div class="bg-indigo-900/90 border-2 border-indigo-400 p-8 rounded-2xl max-w-sm w-full mx-4 text-center shadow-[0_0_40px_rgba(79,70,229,0.4)] transform transition-all scale-100 relative backdrop-blur-md">
+                <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-indigo-500 p-3 rounded-full border-4 border-indigo-900 shadow-lg">
+                    <div class="text-2xl text-white">✨</div>
+                </div>
+                <h3 class="text-2xl font-cartoon text-white mb-4 mt-4">Your Wish</h3>
+                <p id="wish-text" class="text-xl text-indigo-100 mb-6 font-semibold leading-relaxed font-sans"></p>
+                <button onclick="closeWishModal()" class="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 rounded-xl text-white font-bold tracking-wide transition-transform hover:scale-105 shadow-lg">
+                    Keep it close
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: THE WANDERING TIMELINE          -->
+    <!-- ========================================== -->
+    <section class="relative min-h-[150vh] bg-slate-900 py-20 overflow-hidden border-t border-white/5">
+        
+        <div class="container mx-auto px-4 relative">
+            <div class="text-center mb-16 relative z-30">
+                <h2 class="text-4xl md:text-5xl font-cartoon text-indigo-300">Time Travel</h2>
+                <p class="text-slate-400 mt-2 font-bold">Connect the dots to relive the fun</p>
+            </div>
+
+            <!-- The Wandering Curve Container -->
+            <div class="relative w-full max-w-3xl mx-auto h-[1200px]" id="timeline-container">
+                <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 0;">
+                    <defs>
+                        <linearGradient id="pathGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0" />
+                            <stop offset="20%" style="stop-color:#fbbf24;stop-opacity:1" />
+                            <stop offset="80%" style="stop-color:#f472b6;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#f472b6;stop-opacity:0" />
+                        </linearGradient>
+                    </defs>
+                    <path id="timeline-path-shadow" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12" stroke-linecap="round" />
+                    <path id="timeline-path" fill="none" stroke="url(#pathGradient)" stroke-width="6" stroke-linecap="round" stroke-dasharray="15, 15" />
+                </svg>
+
+                <div id="timeline-points-layer" class="absolute inset-0 z-10 w-full h-full"></div>
+            </div>
+        </div>
+
+        <!-- Timeline Info Modal -->
+        <div id="timeline-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md hidden opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-slate-800 border-2 border-slate-600 rounded-2xl overflow-hidden max-w-2xl w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="timeline-modal-content">
+                <div class="flex flex-col md:flex-row h-full max-h-[80vh]">
+                    <div class="w-full md:w-1/2 bg-slate-700 h-64 md:h-auto relative overflow-hidden group">
+                        <img id="modal-img" src="" alt="Memory" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
+                        <div class="absolute bottom-4 left-4">
+                            <span id="modal-date" class="px-4 py-1 bg-white/20 backdrop-blur text-white font-bold rounded-full shadow-lg"></span>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/2 p-8 flex flex-col justify-center relative">
+                        <button onclick="closeTimelineModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-700 rounded-full p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <h3 id="modal-title" class="text-3xl font-cartoon text-white mb-4"></h3>
+                        <p id="modal-desc" class="text-slate-300 leading-relaxed font-semibold"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LOGIC                           -->
+    <!-- ========================================== -->
+    <script>
+        /* -------------------------------------------
+           MUSIC & SETTINGS LOGIC
+        ------------------------------------------- */
+        const music = document.getElementById('bg-music');
+        const iconPlay = document.getElementById('icon-play');
+        const iconPause = document.getElementById('icon-pause');
+        let isPlaying = false;
+
+        function toggleMusic() {
+            if (isPlaying) {
+                music.pause();
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+            } else {
+                music.play().then(() => {
+                    iconPlay.classList.add('hidden');
+                    iconPause.classList.remove('hidden');
+                }).catch(e => console.log("Audio playback failed:", e));
+            }
+            isPlaying = !isPlaying;
+        }
+
+        // Settings Panel
+        function toggleSettings() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function applySettings() {
+            const skyUrl = document.getElementById('input-sky').value;
+            const seaUrl = document.getElementById('input-sea').value;
+            const beachUrl = document.getElementById('input-beach').value;
+            const personUrl = document.getElementById('input-person').value;
+
+            // Apply Sky
+            if(skyUrl) {
+                document.getElementById('sky-layer').style.background = `url('${skyUrl}') center/cover no-repeat`;
+                document.getElementById('sky-layer').style.animation = 'none'; // Disable shift for static images
+            }
+
+            // Apply Sea
+            if(seaUrl) {
+                const seaSprite = document.getElementById('sea-sprite');
+                seaSprite.style.display = 'block';
+                seaSprite.style.backgroundImage = `url('${seaUrl}')`;
+            } else {
+                 if(document.getElementById('input-sea').value === "") {
+                    document.getElementById('sea-sprite').style.display = 'none';
+                 }
+            }
+
+            // Apply Beach
+            if(beachUrl) {
+                document.getElementById('beach').style.backgroundImage = `url('${beachUrl}')`;
+                document.getElementById('beach').style.backgroundSize = 'cover';
+            }
+
+            // Apply Person
+            if(personUrl) {
+                document.getElementById('person-default').classList.add('hidden');
+                const personImg = document.getElementById('person-custom');
+                personImg.src = personUrl;
+                personImg.classList.remove('hidden');
+            } else if (document.getElementById('input-person').value === "") {
+                 document.getElementById('person-default').classList.remove('hidden');
+                 document.getElementById('person-custom').classList.add('hidden');
+            }
+
+            toggleSettings();
+        }
+
+        function resetSettings() {
+            // Clear inputs
+            document.querySelectorAll('.settings-input').forEach(i => i.value = '');
+            
+            // Revert styles
+            document.getElementById('sky-layer').style.background = '';
+            document.getElementById('sea-sprite').style.display = 'none';
+            document.getElementById('beach').style.backgroundImage = '';
+            document.getElementById('person-default').classList.remove('hidden');
+            document.getElementById('person-custom').classList.add('hidden');
+            
+            toggleSettings();
+        }
+
+        /* -------------------------------------------
+           SECTION 1: STAR SYSTEM
+        ------------------------------------------- */
+        const wishes = [
+            "Courage is your superpower!",
+            "Good vibes are coming your way.",
+            "You did great today!",
+            "Love yourself, you're awesome!",
+            "Adventure awaits!",
+            "Stay chill, stay happy.",
+            "Something cool is about to happen.",
+            "Let go of the ouchies.",
+            "You're stronger than a boss battle!"
+        ];
+
+        const starField = document.getElementById('star-field');
+        
+        function createStars() {
+            const starCount = 200; 
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const x = Math.random() * 100;
+                const y = Math.random() * 65; 
+                const size = 1 + Math.random() * 2; 
+                const duration = 2 + Math.random() * 4;
+                const delay = Math.random() * 5;
+                const opacity = 0.2 + Math.random() * 0.8;
+
+                star.style.left = `${x}%`;
+                star.style.top = `${y}%`;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.setProperty('--duration', `${duration}s`);
+                star.style.setProperty('--delay', `${delay}s`);
+                star.style.setProperty('--max-opacity', opacity);
+
+                starField.appendChild(star);
+            }
+        }
+
+        const shootingStarContainer = document.getElementById('shooting-star-container');
+        
+        function spawnShootingStar() {
+            const star = document.createElement('div');
+            star.classList.add('shooting-star');
+            
+            // Start mostly from right side to drift left
+            const startX = 80 + Math.random() * 20; // 80-100% width
+            const startY = Math.random() * 30; // Top 30% height
+            
+            const width = 100 + Math.random() * 120; // Long elegant trails
+            
+            star.style.width = `${width}px`;
+            star.style.left = `${startX}%`;
+            star.style.top = `${startY}%`;
+            
+            // Animation Duration: Constant speed means duration relates to distance, 
+            // but for simplicity we use a standard fast-but-smooth timing.
+            const duration = 3 + Math.random() * 2; 
+            star.style.animation = `shoot-blink ${duration}s linear forwards`;
+
+            // Hitbox
+            const hitbox = document.createElement('div');
+            hitbox.classList.add('shooting-star-hitbox');
+            star.appendChild(hitbox);
+
+            // Interaction
+            star.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const randomWish = wishes[Math.floor(Math.random() * wishes.length)];
+                document.getElementById('wish-text').innerText = randomWish;
+                document.getElementById('wish-modal').classList.remove('hidden');
+                star.remove();
+            });
+
+            shootingStarContainer.appendChild(star);
+
+            setTimeout(() => {
+                if(star.parentElement) star.remove();
+            }, duration * 1000);
+        }
+
+        createStars();
+        // Spawn loop
+        setInterval(spawnShootingStar, 2000 + Math.random() * 3000);
+
+        function closeWishModal() {
+            document.getElementById('wish-modal').classList.add('hidden');
+        }
+
+
+        /* -------------------------------------------
+           SECTION 2: TIMELINE SYSTEM
+        ------------------------------------------- */
+        
+        const timelineData = [
+            { id: 1, date: "January", title: "New Beginnings", desc: "Started the year with hot cocoa and big dreams!", img: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80" },
+            { id: 2, date: "March", title: "Spring Vibes", desc: "Flowers everywhere! The world turned colorful again.", img: "https://images.unsplash.com/photo-1490750967868-58cb75069ed6?auto=format&fit=crop&w=800&q=80" },
+            { id: 3, date: "June", title: "Beach Days", desc: "Salty hair, sandy toes, and the best ice cream ever.", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80" },
+            { id: 4, date: "August", title: "Night Watch", desc: "Counting stars and chasing fireflies in the backyard.", img: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80" },
+            { id: 5, date: "October", title: "Crunchy Leaves", desc: "Sweater weather is the best weather. Everything is orange!", img: "https://images.unsplash.com/photo-1507783548225-b10fd89345dc?auto=format&fit=crop&w=800&q=80" },
+            { id: 6, date: "December", title: "Cozy Time", desc: "Wrapped in blankets, feeling grateful for the ride.", img: "https://images.unsplash.com/photo-1483304528321-0674f0040030?auto=format&fit=crop&w=800&q=80" }
+        ];
+
+        const container = document.getElementById('timeline-container');
+        const path = document.getElementById('timeline-path');
+        const shadowPath = document.getElementById('timeline-path-shadow');
+        const pointsLayer = document.getElementById('timeline-points-layer');
+
+        function drawTimeline() {
+            pointsLayer.innerHTML = '';
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+            const points = timelineData.length;
+            const segmentHeight = height / (points + 1);
+            let d = `M ${width/2} 0 `;
+            let dotPositions = [];
+
+            for(let i = 0; i < points; i++) {
+                const y = segmentHeight * (i + 1);
+                const offset = (width * 0.35); 
+                const x = (width / 2) + (Math.sin(i * 1.5) * offset); 
+                dotPositions.push({x, y, data: timelineData[i]});
+            }
+
+            d = `M ${width/2} 0 `;
+            dotPositions.forEach((pos, i) => {
+                const prevY = i === 0 ? 0 : dotPositions[i-1].y;
+                const prevX = i === 0 ? width/2 : dotPositions[i-1].x;
+                const midY = (prevY + pos.y) / 2;
+                d += `C ${prevX},${midY} ${pos.x},${midY} ${pos.x},${pos.y} `;
+                createDot(pos.x, pos.y, pos.data, i);
+            });
+            const lastPos = dotPositions[dotPositions.length - 1];
+            d += `L ${lastPos.x} ${height}`;
+
+            path.setAttribute('d', d);
+            shadowPath.setAttribute('d', d);
+        }
+
+        function createDot(x, y, data, index) {
+            const dot = document.createElement('div');
+            dot.className = 'timeline-node absolute w-8 h-8 rounded-full cursor-pointer z-10 flex items-center justify-center transition-transform hover:scale-125';
+            dot.style.left = `${x}px`;
+            dot.style.top = `${y}px`;
+            dot.style.transform = `translate(-50%, -50%)`;
+            dot.style.backgroundColor = index % 2 === 0 ? '#fbbf24' : '#f472b6'; // Yellow / Pink
+            dot.style.boxShadow = `0 0 0 4px rgba(255,255,255,0.1)`;
+
+            const label = document.createElement('div');
+            label.innerText = data.date;
+            label.className = `absolute ${index % 2 === 0 ? 'right-10' : 'left-10'} text-white text-lg font-cartoon drop-shadow-md whitespace-nowrap pointer-events-none`;
+            dot.appendChild(label);
+
+            dot.addEventListener('click', () => openTimelineModal(data));
+            pointsLayer.appendChild(dot);
+        }
+
+        function openTimelineModal(data) {
+            const modal = document.getElementById('timeline-modal');
+            const content = document.getElementById('timeline-modal-content');
+            document.getElementById('modal-img').src = data.img;
+            document.getElementById('modal-title').innerText = data.title;
+            document.getElementById('modal-desc').innerText = data.desc;
+            document.getElementById('modal-date').innerText = data.date;
+
+            modal.classList.remove('hidden', 'pointer-events-none');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            });
+        }
+
+        function closeTimelineModal() {
+            const modal = document.getElementById('timeline-modal');
+            const content = document.getElementById('timeline-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden', 'pointer-events-none');
+            }, 300);
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(drawTimeline, 100);
+        });
+
+        drawTimeline();
+
+    </script>
+</body>
+</html>
