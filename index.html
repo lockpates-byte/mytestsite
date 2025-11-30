@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&family=Noto+Serif+SC:wght@500;700&display=swap');
 
         :root {
             --sky-bg: linear-gradient(to bottom, #000000 0%, #050A1E 40%, #0a1128 70%, #1a2c5a 100%);
@@ -30,6 +30,10 @@
         h1, h2, h3, .font-cartoon {
             font-family: 'Fredoka One', cursive;
             letter-spacing: 1px;
+        }
+
+        .font-chinese-serif {
+            font-family: 'Noto Serif SC', 'SimSun', 'Songti SC', serif;
         }
 
         /* --- SECTION 1: STARRY SKY --- */
@@ -115,47 +119,32 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 35vh; /* Increased height for top-down motion */
+            height: 35vh; 
             z-index: 16;
             pointer-events: none;
             overflow: visible;
         }
 
-        /* The SVG Path for the wave */
         .tide-path {
-            fill: none; /* REMOVED FILL as requested */
-            stroke: url(#chalk-gradient); /* Use gradient for opacity variation */
+            fill: none; 
+            stroke: url(#chalk-gradient); 
             stroke-width: 8; 
             stroke-linecap: round;
-            /* Added Light Blue Drop Shadow for Glow */
             filter: drop-shadow(0 4px 15px rgba(34, 211, 238, 0.6)) url(#chalk-texture); 
             opacity: 0.9;
             vector-effect: non-scaling-stroke;
         }
 
-        /* Animation for the whole wave SVG group */
         .tide-anim-group {
             animation: tide-wash-down 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             transform-origin: center top;
         }
 
-        /* UPDATED: Top to Down Movement */
         @keyframes tide-wash-down {
-            0% { 
-                transform: translateY(25%) scaleY(0.9); /* Starts in Middle of Ocean */
-                opacity: 0; 
-            }
-            20% { 
-                opacity: 1; 
-            }
-            50% { 
-                transform: translateY(45%) scaleY(1.1); 
-                opacity: 0.8; 
-            } 
-            100% { 
-                transform: translateY(65%) scaleY(1); /* Ends Outside Ocean (on Beach) */
-                opacity: 0; 
-            }
+            0% { transform: translateY(25%) scaleY(0.9); opacity: 0; }
+            20% { opacity: 1; }
+            50% { transform: translateY(45%) scaleY(1.1); opacity: 0.8; } 
+            100% { transform: translateY(65%) scaleY(1); opacity: 0; }
         }
 
         .sea-sprite {
@@ -194,16 +183,16 @@
         .ui-controls { transition: opacity 1s ease; }
         #sky-text-content { transition: opacity 2s ease 2.5s; }
 
-        /* --- SECTION 2: TIME TRAVEL (CHALK THEME) --- */
-        #timeline-section {
+        /* --- SECTION 2 & 3: LIGHT THEME (CHALK) --- */
+        #timeline-section, #greeting-section {
             background-color: #ffffff;
             position: relative;
             overflow: hidden;
         }
 
-        #timeline-bg-glow {
+        .bg-glow-radial {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; height: 80%;
+            width: 90%; height: 90%;
             background: radial-gradient(ellipse at center, rgba(204, 251, 241, 0.8) 0%, rgba(255,255,255,0) 70%);
             z-index: 0; pointer-events: none;
         }
@@ -261,17 +250,6 @@
         }
         .dot-avatar.show { opacity: 1; pointer-events: auto; scale: 1; }
         .dot-avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-        .future-text {
-            position: absolute;
-            font-family: 'Fredoka One', cursive;
-            font-size: 2rem;
-            color: #94a3b8;
-            transform: translate(-50%, 0);
-            opacity: 0;
-            transition: opacity 1s ease;
-        }
-        .future-text.visible { opacity: 1; }
 
     </style>
 </head>
@@ -335,7 +313,7 @@
         </div>
     </div>
 
-    <!-- Audio (FIXED SOURCE to match previous version) -->
+    <!-- Audio -->
     <div class="fixed top-6 right-6 z-50 ui-controls text-white">
         <button id="music-toggle" onclick="event.stopPropagation(); toggleMusic()" class="bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full p-3 border border-white/10 shadow-lg">
             <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
@@ -392,8 +370,8 @@
 
     <!-- SECTION 2: TIME TRAVEL -->
     <section id="timeline-section" class="min-h-[150vh] py-20 relative">
-        <div id="timeline-bg-glow"></div>
-        <div id="chalk-particles" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+        <div class="bg-glow-radial"></div>
+        <div id="chalk-particles-timeline" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
 
         <div class="container mx-auto px-4 relative z-10">
             <div class="text-center mb-16 relative z-30">
@@ -431,16 +409,42 @@
         </div>
     </section>
 
+    <!-- SECTION 3: NEW YEAR GREETINGS -->
+    <section id="greeting-section" class="relative w-full h-screen flex flex-col items-center justify-center hidden transition-opacity duration-1000 opacity-0">
+        <!-- Reusing Background Elements from Part 2 -->
+        <div class="bg-glow-radial"></div>
+        <div id="chalk-particles-greeting" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+
+        <!-- Letter Text -->
+        <div class="relative z-10 text-center max-w-3xl mx-auto px-6">
+            <h2 class="text-3xl md:text-4xl font-bold text-[var(--jade-blue)] mb-8 tracking-widest font-chinese-serif">致 亲爱的朋友</h2>
+
+            <div class="space-y-6 text-xl md:text-2xl text-slate-600 font-chinese-serif leading-relaxed">
+                <p>见字如面。</p>
+                <p>时光的列车已驶过昨日的站台。</p>
+                <p>感谢你收藏了这一路的星光与回忆。</p>
+                <p>愿你在新的一年里：</p>
+                <p class="text-indigo-600 font-bold text-2xl">心有山海，静而无争。</p>
+                <p>万事胜意，岁岁平安。</p>
+            </div>
+
+            <div class="mt-16">
+                <p class="text-4xl md:text-6xl font-cartoon text-[var(--jade-blue)] drop-shadow-sm">2025 新年快乐!</p>
+            </div>
+        </div>
+    </section>
+
     <script>
         let introActive = true;
         let visibleDotIndex = 0; 
+        let isJourneyComplete = false;
         
         function startJourney() {
             if(!introActive) return;
             introActive = false;
             document.body.classList.remove('intro-mode');
             
-            // Audio Play Logic (Restored from previous version)
+            // Audio Play Logic 
             const music = document.getElementById('bg-music');
             music.play().then(() => {
                 document.getElementById('icon-play').classList.add('hidden');
@@ -513,7 +517,7 @@
         }
         function closeWishModal() { document.getElementById('wish-modal').classList.add('hidden'); }
 
-        // --- Tide Generation Logic (UPDATED) ---
+        // --- Tide Generation Logic ---
         function generateTideWave() {
             const svgPath = document.getElementById('tide-path');
             const points = 12; // Number of wave peaks
@@ -521,8 +525,6 @@
             const height = 150; 
             const baseHeight = 50; 
             
-            // Start directly at the first point (Open Path logic)
-            // No longer starting at "0, height" to avoid closing the box
             let d = `M 0 ${baseHeight} `; 
 
             for (let i = 0; i <= points; i++) {
@@ -538,10 +540,6 @@
                     d += `Q ${midX} ${y + (Math.random()*40 - 20)} ${x} ${y} `;
                 }
             }
-
-            // REMOVED: d += `L ${width} ${height} Z`; 
-            // The path is now an open line (crest only)
-            
             svgPath.setAttribute('d', d);
         }
 
@@ -564,82 +562,59 @@
             
             const width = timelineContainer.offsetWidth;
             const points = timelineData.length;
-            
             const startY = 80;
             const verticalSpacing = 200; 
             const sideMargin = width * 0.28; 
             const radius = 60; 
-            const lineLength = 25; 
 
             let dotCoords = [];
-            let currentY = startY;
 
             for(let i = 0; i < points; i++) {
-                let side = (i % 2 === 0) ? 'left' : 'right';
-                let x = (side === 'left') ? sideMargin : (width - sideMargin);
-                let y = currentY;
+                const y = startY + (i * verticalSpacing);
+                const x = (i % 2 === 0) ? sideMargin : (width - sideMargin);
+                const side = (i % 2 === 0) ? 'left' : 'right';
                 dotCoords.push({x, y, data: timelineData[i], index: i, side});
-                currentY += verticalSpacing;
             }
 
-            // Path Generation
-            // 1. Normal Paths
             for(let i = 0; i < dotCoords.length - 1; i++) {
                 const curr = dotCoords[i];
                 const next = dotCoords[i+1];
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                let d = generatePathD(curr, next, radius, lineLength);
+                let d = "";
+
+                if (curr.side === 'left') {
+                    const turnStartX = width - sideMargin - radius;
+                    d += `M ${curr.x} ${curr.y} L ${turnStartX} ${curr.y} A ${radius} ${radius} 0 0 1 ${next.x} ${next.y}`;
+                } else {
+                    const turnStartX = sideMargin + radius;
+                    d += `M ${curr.x} ${curr.y} L ${turnStartX} ${curr.y} A ${radius} ${radius} 0 0 0 ${next.x} ${next.y}`;
+                }
 
                 path.setAttribute("d", d);
                 path.classList.add("path-segment");
                 path.id = `path-${i}`;
                 svgLayer.appendChild(path);
+
+                const len = path.getTotalLength();
+                path.style.strokeDasharray = "15 8"; 
+                path.style.strokeDashoffset = len; 
+
+                const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+                mask.id = `mask-${i}`;
+                const maskPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                maskPath.setAttribute("d", d);
+                maskPath.setAttribute("stroke", "white");
+                maskPath.setAttribute("stroke-width", "12"); 
+                maskPath.setAttribute("fill", "none");
+                maskPath.setAttribute("stroke-dasharray", len);
+                maskPath.setAttribute("stroke-dashoffset", len); 
+                maskPath.id = `mask-path-${i}`;
+                mask.appendChild(maskPath);
+                svgLayer.appendChild(mask);
                 
-                setupDashedAnimation(path, i);
+                path.setAttribute("mask", `url(#mask-${i})`);
             }
 
-            // 2. Fading Segment
-            const lastDot = dotCoords[dotCoords.length - 1]; 
-            let fadeD = "";
-            let tailEndX, tailEndY;
-
-            if (lastDot.side === 'left') {
-                const turnStartX = width - sideMargin - radius;
-                fadeD += `M ${lastDot.x} ${lastDot.y} `;
-                fadeD += `L ${turnStartX} ${lastDot.y} `; 
-                fadeD += `A ${radius} ${radius} 0 0 1 ${width - sideMargin} ${lastDot.y + radius} `; 
-                fadeD += `L ${width - sideMargin} ${lastDot.y + radius + 60}`; 
-                
-                tailEndX = width - sideMargin;
-                tailEndY = lastDot.y + radius + 60;
-            } else {
-                const turnStartX = sideMargin + radius;
-                fadeD += `M ${lastDot.x} ${lastDot.y} `;
-                fadeD += `L ${turnStartX} ${lastDot.y} `; 
-                fadeD += `A ${radius} ${radius} 0 0 0 ${sideMargin} ${lastDot.y + radius} `; 
-                fadeD += `L ${sideMargin} ${lastDot.y + radius + 60}`; 
-                
-                tailEndX = sideMargin;
-                tailEndY = lastDot.y + radius + 60;
-            }
-            
-            const fadingPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            fadingPath.setAttribute("d", fadeD);
-            fadingPath.classList.add("path-segment");
-            fadingPath.setAttribute("mask", "url(#fade-mask)");
-            fadingPath.id = `path-${points - 1}`; 
-            svgLayer.appendChild(fadingPath);
-            setupDashedAnimation(fadingPath, points - 1);
-
-            const futureText = document.createElement('div');
-            futureText.innerText = "2026...";
-            futureText.className = "future-text";
-            futureText.style.left = `${tailEndX}px`;
-            futureText.style.top = `${tailEndY + 20}px`;
-            futureText.id = "future-text";
-            pointsLayer.appendChild(futureText);
-
-            // Render Dots
             dotCoords.forEach((coord, i) => {
                 const dot = document.createElement('div');
                 dot.className = 'timeline-dot absolute w-6 h-6 rounded-full shadow-md z-20';
@@ -654,13 +629,10 @@
                 avatar.innerHTML = `<img src="${coord.data.img}" alt="memory">`;
                 avatar.id = `avatar-${i}`;
                 
-                if (coord.side === 'right') {
-                    avatar.style.left = '70px'; 
-                } else {
-                    avatar.style.right = '70px'; 
-                }
+                if (coord.side === 'right') { avatar.style.left = '70px'; } else { avatar.style.right = '70px'; }
                 
                 dot.appendChild(avatar);
+
                 dot.addEventListener('click', (e) => {
                     e.stopPropagation();
                     handleDotClick(i, coord.data);
@@ -669,81 +641,41 @@
             });
         }
 
-        function generatePathD(curr, next, radius, lineLength) {
-            let d = "";
-            if (curr.x < next.x) { // Left to Right
-                d += `M ${curr.x} ${curr.y} `;
-                d += `L ${next.x - radius} ${curr.y} `; 
-                d += `A ${radius} ${radius} 0 0 1 ${next.x} ${curr.y + radius} `; 
-                d += `L ${next.x} ${next.y}`; 
-            } else { // Right to Left
-                d += `M ${curr.x} ${curr.y} `;
-                d += `L ${next.x + radius} ${curr.y} `; 
-                d += `A ${radius} ${radius} 0 0 0 ${next.x} ${curr.y + radius} `; 
-                d += `L ${next.x} ${next.y}`; 
-            }
-            return d;
-        }
-
-        function setupDashedAnimation(path, i) {
-            const len = path.getTotalLength();
-            path.style.strokeDasharray = "15 8"; 
-            path.style.strokeDashoffset = len; 
-
-            const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
-            mask.id = `mask-${i}`;
-            const maskPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            maskPath.setAttribute("d", path.getAttribute("d"));
-            maskPath.setAttribute("stroke", "white");
-            maskPath.setAttribute("stroke-width", "12"); 
-            maskPath.setAttribute("fill", "none");
-            maskPath.setAttribute("stroke-dasharray", len);
-            maskPath.setAttribute("stroke-dashoffset", len); 
-            maskPath.id = `mask-path-${i}`;
-            mask.appendChild(maskPath);
-            document.getElementById('timeline-svg').appendChild(mask);
-            
-            if(path.getAttribute("mask") === "url(#fade-mask)") {
-               // Special case handled in click logic for fade
-            } else {
-               path.setAttribute("mask", `url(#mask-${i})`);
-            }
-        }
-
         function handleDotClick(index, data) {
             const avatar = document.getElementById(`avatar-${index}`);
             if(avatar) avatar.classList.add('show');
 
             openTimelineModal(data);
 
-            if (index === visibleDotIndex) {
-                if (index < timelineData.length - 1) {
-                    const maskPath = document.getElementById(`mask-path-${index}`);
-                    const nextDot = document.getElementById(`dot-${index+1}`);
-                    if(maskPath) {
-                        maskPath.style.transition = "stroke-dashoffset 2s linear";
-                        maskPath.style.strokeDashoffset = "0"; 
-                    }
-                    setTimeout(() => {
-                        if(nextDot) nextDot.classList.add('visible');
-                        visibleDotIndex++;
-                    }, 2000);
-                } 
-                else if (index === timelineData.length - 1) {
-                    const fadingPath = document.getElementById(`path-${index}`);
-                    if(fadingPath) {
-                        fadingPath.style.transition = "stroke-dashoffset 2.5s linear";
-                        fadingPath.style.strokeDashoffset = "0";
-                    }
-                    setTimeout(() => {
-                        document.getElementById('future-text').classList.add('visible');
-                    }, 2500);
+            // Logic to reveal next dot
+            if (index === visibleDotIndex && index < timelineData.length - 1) {
+                const maskPath = document.getElementById(`mask-path-${index}`);
+                const nextDot = document.getElementById(`dot-${index+1}`);
+                if(maskPath) {
+                    maskPath.style.transition = "stroke-dashoffset 2s linear";
+                    maskPath.style.strokeDashoffset = "0"; 
                 }
+                setTimeout(() => {
+                    if(nextDot) nextDot.classList.add('visible');
+                    visibleDotIndex++;
+                }, 2000); 
+            }
+            
+            // Logic for completing the journey (Last Dot)
+            if (index === timelineData.length - 1) {
+                isJourneyComplete = true;
+                const section3 = document.getElementById('greeting-section');
+                section3.classList.remove('hidden');
+                // Allow display block to apply before fading in
+                requestAnimationFrame(() => {
+                    section3.classList.remove('opacity-0');
+                });
             }
         }
 
-        function createChalkParticles() {
-            const container = document.getElementById('chalk-particles');
+        function createChalkParticles(containerId) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
             for(let i=0; i<30; i++) {
                 const p = document.createElement('div');
                 p.classList.add('chalk-particle');
@@ -766,16 +698,27 @@
             m.classList.remove('hidden', 'pointer-events-none');
             requestAnimationFrame(() => { m.classList.remove('opacity-0'); document.getElementById('timeline-modal-content').classList.remove('scale-95'); });
         }
+        
         function closeTimelineModal() {
             const m = document.getElementById('timeline-modal');
             m.classList.add('opacity-0');
-            setTimeout(() => m.classList.add('hidden', 'pointer-events-none'), 300);
+            setTimeout(() => {
+                m.classList.add('hidden', 'pointer-events-none');
+                
+                // If the journey is complete, scroll to the letter after closing the modal
+                if(isJourneyComplete) {
+                    setTimeout(() => {
+                        document.getElementById('greeting-section').scrollIntoView({ behavior: 'smooth' });
+                    }, 500);
+                }
+            }, 300);
         }
 
         createStars();
         drawTimeline();
-        generateTideWave(); // Generate wave on load
-        createChalkParticles();
+        generateTideWave(); 
+        createChalkParticles('chalk-particles-timeline');
+        createChalkParticles('chalk-particles-greeting');
         
         let resizeT;
         window.addEventListener('resize', () => {
@@ -783,7 +726,7 @@
             resizeT = setTimeout(() => {
                 visibleDotIndex = 0; 
                 drawTimeline(); 
-                generateTideWave(); // Re-generate on resize
+                generateTideWave(); 
             }, 100);
         });
 
