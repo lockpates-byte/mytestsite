@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&family=Noto+Serif+SC:wght@500;700&display=swap');
 
         :root {
             --sky-bg: linear-gradient(to bottom, #000000 0%, #050A1E 40%, #0a1128 70%, #1a2c5a 100%);
@@ -30,6 +30,10 @@
         h1, h2, h3, .font-cartoon {
             font-family: 'Fredoka One', cursive;
             letter-spacing: 1px;
+        }
+
+        .font-chinese-serif {
+            font-family: 'Noto Serif SC', 'SimSun', 'Songti SC', serif;
         }
 
         /* --- SECTION 1: STARRY SKY --- */
@@ -144,16 +148,16 @@
         .ui-controls { transition: opacity 1s ease; }
         #sky-text-content { transition: opacity 2s ease 2.5s; }
 
-        /* --- SECTION 2: TIME TRAVEL (CHALK THEME) --- */
-        #timeline-section {
+        /* --- SECTION 2 & 3: LIGHT THEME (CHALK) --- */
+        #timeline-section, #greeting-section {
             background-color: #ffffff;
             position: relative;
             overflow: hidden;
         }
 
-        #timeline-bg-glow {
+        .bg-glow-radial {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; height: 80%;
+            width: 90%; height: 90%;
             background: radial-gradient(ellipse at center, rgba(204, 251, 241, 0.8) 0%, rgba(255,255,255,0) 70%);
             z-index: 0; pointer-events: none;
         }
@@ -177,7 +181,6 @@
             stroke-dasharray: 15, 8; /* Chalk-like dash */
             filter: url(#chalk-texture); /* Chalk distortion */
             opacity: 0.9;
-            /* Hidden initially by stroke-dashoffset in JS */
         }
         
         .timeline-dot {
@@ -258,13 +261,15 @@
         </div>
     </div>
 
-    <!-- Audio -->
+    <!-- Audio (FIXED SOURCE) -->
     <div class="fixed top-6 right-6 z-50 ui-controls text-white">
         <button id="music-toggle" onclick="event.stopPropagation(); toggleMusic()" class="bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full p-3 border border-white/10 shadow-lg">
             <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
             <svg id="icon-pause" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </button>
-        <audio id="bg-music" loop><source src="wave_stalerice.wav" type="audio/wav"></audio>
+        <audio id="bg-music" loop>
+            <source src="wave_stalerice.wav" type="audio/wav">
+        </audio>
     </div>
 
     <!-- SECTION 1: SKY -->
@@ -285,8 +290,9 @@
             </div>
             <div id="beach" class="beach"></div>
             <div class="person-container" style="width: 200px; height: 300px;">
-                <img id="person-custom" src="chara_seph.jpg" alt="Character" class="w-full h-full object-cover drop-shadow-2xl opacity-90">
+                <img id="person-custom" src="chara_seph.JPG" alt="Character" class="w-full h-full object-cover drop-shadow-2xl opacity-90">
             </div>
+
         </div>
         <div id="wish-modal" onclick="event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300">
             <div class="bg-indigo-900/90 border-2 border-indigo-400 p-8 rounded-2xl max-w-sm w-full mx-4 text-center shadow-[0_0_40px_rgba(79,70,229,0.4)] transform transition-all scale-100 relative backdrop-blur-md">
@@ -302,8 +308,8 @@
 
     <!-- SECTION 2: TIME TRAVEL -->
     <section id="timeline-section" class="min-h-[150vh] py-20 relative">
-        <div id="timeline-bg-glow"></div>
-        <div id="chalk-particles" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+        <div class="bg-glow-radial"></div>
+        <div id="chalk-particles-timeline" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
 
         <div class="container mx-auto px-4 relative z-10">
             <div class="text-center mb-16 relative z-30">
@@ -341,20 +347,49 @@
         </div>
     </section>
 
+    <!-- SECTION 3: NEW YEAR GREETINGS (Hidden initially) -->
+    <section id="greeting-section" class="relative w-full h-screen flex flex-col items-center justify-center hidden transition-opacity duration-1000 opacity-0">
+        <!-- Reusing Background Elements from Part 2 -->
+        <div class="bg-glow-radial"></div>
+        <div id="chalk-particles-greeting" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+
+        <!-- Letter Text (No Card/Border) -->
+        <div class="relative z-10 text-center max-w-3xl mx-auto px-6">
+            <h2 class="text-3xl md:text-4xl font-bold text-[var(--jade-blue)] mb-8 tracking-widest font-chinese-serif">致 亲爱的朋友</h2>
+            
+            <div class="space-y-6 text-xl md:text-2xl text-slate-600 font-chinese-serif leading-relaxed">
+                <p>见字如面。</p>
+                <p>时光的列车已驶过昨日的站台。</p>
+                <p>感谢你收藏了这一路的星光与回忆。</p>
+                <p>愿你在新的一年里：</p>
+                <p class="text-indigo-600 font-bold text-2xl">心有山海，静而无争。</p>
+                <p>万事胜意，岁岁平安。</p>
+            </div>
+
+            <div class="mt-16">
+                <p class="text-4xl md:text-6xl font-cartoon text-[var(--jade-blue)] drop-shadow-sm">2025 新年快乐!</p>
+            </div>
+        </div>
+    </section>
+
     <script>
         let introActive = true;
         let visibleDotIndex = 0; 
+        let isJourneyComplete = false;
 
         function startJourney() {
             if(!introActive) return;
             introActive = false;
             document.body.classList.remove('intro-mode');
             
+            // Audio Play Logic
             const music = document.getElementById('bg-music');
             music.play().then(() => {
                 document.getElementById('icon-play').classList.add('hidden');
                 document.getElementById('icon-pause').classList.remove('hidden');
-            }).catch(e => console.log("Auto-play prevented."));
+            }).catch(e => {
+                console.log("Auto-play prevented by browser. User must toggle manually.");
+            });
 
             setTimeout(() => {
                 const stars = document.querySelectorAll('.star');
@@ -420,7 +455,7 @@
         }
         function closeWishModal() { document.getElementById('wish-modal').classList.add('hidden'); }
 
-        // --- Timeline Logic (Snake Geometry - React Version) ---
+        // --- Timeline Logic ---
         const timelineData = [
             { id: 1, date: "Jan", title: "New Year", desc: "Started with dreams.", img: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=400&q=80" },
             { id: 2, date: "Mar", title: "Spring", desc: "Nature woke up.", img: "https://images.unsplash.com/photo-1490750967868-58cb75069ed6?auto=format&fit=crop&w=400&q=80" },
@@ -439,30 +474,20 @@
             
             const width = timelineContainer.offsetWidth;
             const points = timelineData.length;
-            
-            // Adjusted parameters for better visual spacing with big avatars
             const startY = 80;
-            const verticalSpacing = 200; // Vertical distance between dots
-            
-            // INCREASED MARGIN to shorten the horizontal lines (Snake is narrower)
-            // Using a percentage ensures it stays centered and responsive
+            const verticalSpacing = 200; 
             const sideMargin = width * 0.28; 
-            
-            const radius = 60; // Curve radius
+            const radius = 60; 
 
             let dotCoords = [];
 
-            // Calculate Dot Coordinates
             for(let i = 0; i < points; i++) {
                 const y = startY + (i * verticalSpacing);
-                // Even = Left Side, Odd = Right Side
                 const x = (i % 2 === 0) ? sideMargin : (width - sideMargin);
                 const side = (i % 2 === 0) ? 'left' : 'right';
-                
                 dotCoords.push({x, y, data: timelineData[i], index: i, side});
             }
 
-            // Draw Paths
             for(let i = 0; i < dotCoords.length - 1; i++) {
                 const curr = dotCoords[i];
                 const next = dotCoords[i+1];
@@ -470,27 +495,11 @@
                 let d = "";
 
                 if (curr.side === 'left') {
-                    // Left to Right: Line across -> Arc down-right
-                    // The line length is implicitly determined by the distance between dots minus radius
                     const turnStartX = width - sideMargin - radius;
-                    
-                    // Move to current dot
-                    d += `M ${curr.x} ${curr.y} `;
-                    // Line across
-                    d += `L ${turnStartX} ${curr.y} `;
-                    // Arc down to next dot
-                    // A rx ry x-axis-rotation large-arc-flag sweep-flag x y
-                    d += `A ${radius} ${radius} 0 0 1 ${next.x} ${next.y}`;
+                    d += `M ${curr.x} ${curr.y} L ${turnStartX} ${curr.y} A ${radius} ${radius} 0 0 1 ${next.x} ${next.y}`;
                 } else {
-                    // Right to Left: Line across -> Arc down-left
                     const turnStartX = sideMargin + radius;
-                    
-                    // Move to current dot
-                    d += `M ${curr.x} ${curr.y} `;
-                    // Line across
-                    d += `L ${turnStartX} ${curr.y} `;
-                    // Arc down to next dot (sweep-flag 0 for counter-clockwise)
-                    d += `A ${radius} ${radius} 0 0 0 ${next.x} ${next.y}`;
+                    d += `M ${curr.x} ${curr.y} L ${turnStartX} ${curr.y} A ${radius} ${radius} 0 0 0 ${next.x} ${next.y}`;
                 }
 
                 path.setAttribute("d", d);
@@ -498,12 +507,10 @@
                 path.id = `path-${i}`;
                 svgLayer.appendChild(path);
                 
-                // Progressive Reveal Logic
                 const len = path.getTotalLength();
                 path.style.strokeDasharray = "15 8"; 
-                path.style.strokeDashoffset = len; // Hidden initially
+                path.style.strokeDashoffset = len; 
 
-                // Create Mask
                 const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
                 mask.id = `mask-${i}`;
                 const maskPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -512,7 +519,7 @@
                 maskPath.setAttribute("stroke-width", "12"); 
                 maskPath.setAttribute("fill", "none");
                 maskPath.setAttribute("stroke-dasharray", len);
-                maskPath.setAttribute("stroke-dashoffset", len); // Hidden
+                maskPath.setAttribute("stroke-dashoffset", len); 
                 maskPath.id = `mask-path-${i}`;
                 mask.appendChild(maskPath);
                 svgLayer.appendChild(mask);
@@ -520,7 +527,6 @@
                 path.setAttribute("mask", `url(#mask-${i})`);
             }
 
-            // Render Dots
             dotCoords.forEach((coord, i) => {
                 const dot = document.createElement('div');
                 dot.className = 'timeline-dot absolute w-6 h-6 rounded-full shadow-md z-20';
@@ -535,12 +541,7 @@
                 avatar.innerHTML = `<img src="${coord.data.img}" alt="memory">`;
                 avatar.id = `avatar-${i}`;
                 
-                // Position logic: Outside the curve
-                if (coord.side === 'right') {
-                    avatar.style.left = '70px'; 
-                } else {
-                    avatar.style.right = '70px'; 
-                }
+                if (coord.side === 'right') { avatar.style.left = '70px'; } else { avatar.style.right = '70px'; }
                 
                 dot.appendChild(avatar);
 
@@ -559,6 +560,7 @@
 
             openTimelineModal(data);
 
+            // Logic to reveal next dot
             if (index === visibleDotIndex && index < timelineData.length - 1) {
                 const maskPath = document.getElementById(`mask-path-${index}`);
                 const nextDot = document.getElementById(`dot-${index+1}`);
@@ -573,10 +575,22 @@
                     visibleDotIndex++;
                 }, 2000); 
             }
+
+            // Logic for completing the journey (Last Dot)
+            if (index === timelineData.length - 1) {
+                isJourneyComplete = true;
+                const section3 = document.getElementById('greeting-section');
+                section3.classList.remove('hidden');
+                // Allow display block to apply before fading in
+                requestAnimationFrame(() => {
+                    section3.classList.remove('opacity-0');
+                });
+            }
         }
 
-        function createChalkParticles() {
-            const container = document.getElementById('chalk-particles');
+        function createChalkParticles(containerId) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
             for(let i=0; i<30; i++) {
                 const p = document.createElement('div');
                 p.classList.add('chalk-particle');
@@ -599,15 +613,26 @@
             m.classList.remove('hidden', 'pointer-events-none');
             requestAnimationFrame(() => { m.classList.remove('opacity-0'); document.getElementById('timeline-modal-content').classList.remove('scale-95'); });
         }
+        
         function closeTimelineModal() {
             const m = document.getElementById('timeline-modal');
             m.classList.add('opacity-0');
-            setTimeout(() => m.classList.add('hidden', 'pointer-events-none'), 300);
+            setTimeout(() => {
+                m.classList.add('hidden', 'pointer-events-none');
+                
+                // If the journey is complete, scroll to the letter after closing the modal
+                if(isJourneyComplete) {
+                    setTimeout(() => {
+                        document.getElementById('greeting-section').scrollIntoView({ behavior: 'smooth' });
+                    }, 500);
+                }
+            }, 300);
         }
 
         createStars();
         drawTimeline();
-        createChalkParticles();
+        createChalkParticles('chalk-particles-timeline');
+        createChalkParticles('chalk-particles-greeting');
         
         let resizeT;
         window.addEventListener('resize', () => {
