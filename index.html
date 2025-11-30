@@ -334,14 +334,16 @@
             </div>
         </div>
     </div>
-
-    <!-- Audio -->
+    
+    <!-- Audio (FIXED SOURCE) -->
     <div class="fixed top-6 right-6 z-50 ui-controls text-white">
         <button id="music-toggle" onclick="event.stopPropagation(); toggleMusic()" class="bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full p-3 border border-white/10 shadow-lg">
             <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
             <svg id="icon-pause" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </button>
-        <audio id="bg-music" loop><source src="wave_stalerice.wav" type="audio/wav"></audio>
+        <audio id="bg-music" loop>
+            <source src="wave_stalerice.wav" type="audio/wav">
+        </audio>
     </div>
 
     <!-- SECTION 1: SKY -->
