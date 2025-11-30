@@ -334,8 +334,8 @@
             </div>
         </div>
     </div>
-    
-    <!-- Audio (FIXED SOURCE) -->
+
+    <!-- Audio (FIXED SOURCE to match previous version) -->
     <div class="fixed top-6 right-6 z-50 ui-controls text-white">
         <button id="music-toggle" onclick="event.stopPropagation(); toggleMusic()" class="bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full p-3 border border-white/10 shadow-lg">
             <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
@@ -434,23 +434,20 @@
     <script>
         let introActive = true;
         let visibleDotIndex = 0; 
-        const introMusicUrl = "https://cdn.pixabay.com/download/audio/2024/09/16/audio_f530932205.mp3"; 
-        const mainMusicUrl = "https://cdn.pixabay.com/download/audio/2022/03/09/audio_822ca2b672.mp3"; 
-
+        
         function startJourney() {
             if(!introActive) return;
             introActive = false;
             document.body.classList.remove('intro-mode');
             
+            // Audio Play Logic (Restored from previous version)
             const music = document.getElementById('bg-music');
-            music.pause();
-            music.querySelector('source').src = mainMusicUrl;
-            music.load();
-            
             music.play().then(() => {
                 document.getElementById('icon-play').classList.add('hidden');
                 document.getElementById('icon-pause').classList.remove('hidden');
-            }).catch(e => console.log("Auto-play prevented. User must interact."));
+            }).catch(e => {
+                console.log("Auto-play prevented by browser. User must toggle manually.");
+            });
 
             setTimeout(() => {
                 const stars = document.querySelectorAll('.star');
