@@ -6,14 +6,98 @@
     <title>Starlight & Memories</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Global State for Wishes
+        window.userWishes = [];
+
+        // Auth & Data Logic
+        async function initApp() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    console.log("User authenticated:", user.uid);
+                    setupWishesListener();
+                }
+            });
+        }
+
+        function setupWishesListener() {
+            // Path: /artifacts/{appId}/public/data/wishes
+            // Note: We use a simple query without composite indexes (no complex orderBy + where)
+            const q = query(
+                collection(db, 'artifacts', appId, 'public', 'data', 'wishes')
+            );
+
+            onSnapshot(q, (snapshot) => {
+                const wishes = [];
+                snapshot.forEach((doc) => {
+                    wishes.push(doc.data());
+                });
+                // Sort in memory to avoid index requirements
+                wishes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                
+                window.userWishes = wishes;
+                console.log("Wishes updated:", window.userWishes.length);
+            }, (error) => {
+                console.error("Error listening to wishes:", error);
+            });
+        }
+
+        // Expose function to window for the UI to call
+        window.submitWishToFire = async function(name, wishText) {
+            if (!auth.currentUser) return { error: "Not authenticated" };
+            
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'wishes'), {
+                    name: name || "Anonymous Star",
+                    wish: wishText,
+                    timestamp: serverTimestamp(),
+                    uid: auth.currentUser.uid
+                });
+                return { success: true };
+            } catch (e) {
+                console.error("Error adding wish:", e);
+                return { error: e.message };
+            }
+        };
+
+        // Start App
+        initApp();
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&family=Noto+Serif+SC:wght@500;700&display=swap');
 
         :root {
             --sky-bg: linear-gradient(to bottom, #000000 0%, #050A1E 40%, #0a1128 70%, #1a2c5a 100%);
-            --beach-bg: linear-gradient(to top, #0f0c08, #1c1917);
-            --sand-base: #0f0c08;
-            --jade-blue: #2dd4bf;
+            --sand-base: #f5d197; 
+            --beach-bg: linear-gradient(to top, #d4b580, #0f0c08);
+            
+            /* --- THEME CHANGE: STARRY NIGHT --- */
+            --starry-night-bg: #173679;
+            --theme-accent: #f4e16d;
         }
 
         body {
@@ -56,7 +140,8 @@
         body.intro-mode #star-field, 
         body.intro-mode #shooting-star-container, 
         body.intro-mode .ui-controls, 
-        body.intro-mode #sky-text-content { opacity: 0; pointer-events: none; }
+        body.intro-mode #sky-text-content,
+        body.intro-mode #make-wish-btn-container { opacity: 0; pointer-events: none; }
 
         .beach, .ocean-container, .tide-wave-wrapper { transition: opacity 2s ease 0.5s; }
         #star-field { opacity: 1; transition: opacity 1s ease 2.5s; }
@@ -108,10 +193,16 @@
         }
         .ocean-surface {
             position: absolute; inset: 0;
-            background: radial-gradient(circle at center top, rgba(255,255,255,0.05), transparent 70%);
-            animation: ocean-pulse 6s ease-in-out infinite alternate;
+            background: transparent;
         }
-        @keyframes ocean-pulse { 0% { opacity: 0.3; transform: scale(1); } 100% { opacity: 0.6; transform: scale(1.05); } }
+        
+        #sea-shine-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0.8;
+            mix-blend-mode: plus-lighter;
+        }
 
         /* --- TIDE WAVE WRAPPER --- */
         .tide-wave-wrapper {
@@ -125,25 +216,44 @@
             overflow: visible;
         }
 
-        /* CSS Animations for the alternating tides. */
-        .wave-layer-1 {
-            animation: tide-cycle 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            transform-origin: center top;
-            opacity: 0; 
+        .wave-group-1 {
+            animation: tide-cycle 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            opacity: 0;
+            transform-box: fill-box;
+            transform-origin: center;
         }
 
-        .wave-layer-2 {
-            animation: tide-cycle 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            animation-delay: 6s; 
-            transform-origin: center top;
+        .wave-group-2 {
+            animation: tide-cycle 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            animation-delay: 4s; 
             opacity: 0;
+            transform-box: fill-box;
+            transform-origin: center;
         }
 
         @keyframes tide-cycle {
-            0% { transform: translateY(-5%) scaleY(0.95); opacity: 0; }
-            15% { opacity: 1; }
-            60% { transform: translateY(15%) scaleY(1.05); opacity: 0.8; } 
-            100% { transform: translateY(25%) scaleY(1); opacity: 0; }
+            0% { transform: translateY(-30px) scaleY(0.95); opacity: 0; }
+            20% { opacity: 0.8; }
+            50% { transform: translateY(20px) scaleY(1); opacity: 1; } 
+            75% { opacity: 0; } 
+            100% { transform: translateY(40px) scaleY(1.05); opacity: 0; }
+        }
+
+        .foam-shape {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: foam-spread 8s ease-in-out infinite;
+        }
+        
+        .wave-group-2 .foam-shape {
+            animation-delay: 4s;
+        }
+
+        @keyframes foam-spread {
+            0% { transform: scaleX(0.8) translateY(-5px); opacity: 0; }
+            35% { opacity: 1; } 
+            65% { transform: scaleX(1.5) translateY(15px); opacity: 0; } 
+            100% { transform: scaleX(1.8) translateY(20px); opacity: 0; }
         }
 
         .sea-sprite {
@@ -159,8 +269,22 @@
             position: absolute; bottom: 0; width: 100%; height: 12vh;
             background: var(--beach-bg); background-size: cover; background-position: center bottom;
             z-index: 15; box-shadow: 0 -5px 30px rgba(0,0,0,0.8); background-color: var(--sand-base);
+            position: absolute;
+            overflow: hidden; 
         }
+        
         .beach::after { content: ''; position: absolute; top: 100%; left: 0; width: 100%; height: 100vh; background-color: var(--sand-base); }
+
+        .beach-texture {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            z-index: 1; 
+            opacity: 0.8; 
+        }
 
         .person-container {
             position: absolute; z-index: 20; bottom: 6vh; left: 50%; transform: translateX(-50%);
@@ -181,23 +305,26 @@
         ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 5px; border: 2px solid #0f172a; }
         .ui-controls { transition: opacity 1s ease; }
         #sky-text-content { transition: opacity 2s ease 2.5s; }
+        #make-wish-btn-container { transition: opacity 2s ease 3s; }
 
         /* --- SECTION 2 & 3: LIGHT THEME (CHALK) --- */
         #timeline-section, #greeting-section {
-            background-color: #ffffff;
+            /* Changed to Starry Night Blue */
+            background-color: var(--starry-night-bg);
             position: relative;
             overflow: hidden;
+            color: #ffffff; 
         }
 
         .bg-glow-radial {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 90%; height: 90%;
-            background: radial-gradient(ellipse at center, rgba(204, 251, 241, 0.8) 0%, rgba(255,255,255,0) 70%);
+            background: radial-gradient(ellipse at center, rgba(30, 58, 138, 0.5) 0%, rgba(23, 54, 121, 0) 70%);
             z-index: 0; pointer-events: none;
         }
 
         .chalk-particle {
-            position: absolute; background: var(--jade-blue);
+            position: absolute; background: var(--theme-accent);
             border-radius: 50%; opacity: 0.3; pointer-events: none;
             animation: float-chalk var(--duration) ease-in-out infinite;
         }
@@ -208,7 +335,7 @@
 
         .path-segment {
             fill: none;
-            stroke: var(--jade-blue);
+            stroke: var(--theme-accent);
             stroke-width: 5;
             stroke-linecap: round;
             stroke-dasharray: 15, 8; 
@@ -220,8 +347,8 @@
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             opacity: 0;
             transform: translate(-50%, -50%) scale(0);
-            background-color: var(--jade-blue);
-            border: 4px solid white;
+            background-color: var(--theme-accent);
+            border: 4px solid #1e3a8a; /* Dark blue border */
             filter: url(#chalk-texture); 
         }
         .timeline-dot.visible {
@@ -232,16 +359,16 @@
 
         .dot-avatar {
             position: absolute;
-            width: 200px; height: 200px; 
+            width: 140px; height: 140px; 
             border-radius: 50%;
-            background-color: #f0fdfa;
-            border: 8px solid var(--jade-blue);
+            background-color: #f0f9ff;
+            border: 8px solid var(--theme-accent);
             top: 50%; 
             transform: translateY(-50%);
             opacity: 0; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: flex; align-items: center; justify-content: center;
             overflow: hidden;
-            box-shadow: 0 10px 25px -5px rgba(20, 184, 166, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(244, 225, 109, 0.3);
             pointer-events: none;
             z-index: 25;
             transform-origin: center;
@@ -250,25 +377,32 @@
         .dot-avatar.show { opacity: 1; pointer-events: auto; scale: 1; }
         .dot-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* --- FORCE LANDSCAPE ON MOBILE --- */
-        @media screen and (orientation: portrait) and (max-width: 900px) {
-            body {
-                transform: rotate(90deg);
-                transform-origin: top left;
-                position: absolute;
-                top: 0;
-                left: 100vw;
-                width: 100vh;
-                height: 100vw;
-                overflow: hidden;
-            }
-            /* Hide scrollbar to prevent visual glitches during rotation */
-            ::-webkit-scrollbar { display: none; }
+        /* --- BACKGROUND STARS CSS --- */
+        .bg-star {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            filter: url(#star-chalk-texture);
+            z-index: 1; 
+            pointer-events: none;
+            animation: star-pulse 3s infinite ease-in-out;
+            animation-delay: var(--delay);
+        }
+
+        .bg-star polygon {
+            fill: #f4e16d;
+            stroke: #e6d25a;
+            stroke-width: 2;
+            filter: drop-shadow(0 0 10px rgba(244, 225, 109, 0.5));
+        }
+
+        @keyframes star-pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(0.8); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
         }
 
     </style>
 </head>
-<body class="text-slate-900 intro-mode" onclick="startJourney()">
+<body class="text-slate-100 intro-mode" onclick="startJourney()">
 
     <!-- SVG Filters & Gradients -->
     <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg">
@@ -278,22 +412,33 @@
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
             </filter>
             
-            <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:#4a7c8c;stop-opacity:0.3" />
-                <stop offset="50%" style="stop-color:#5a8c9c;stop-opacity:0.5" />
-                <stop offset="100%" style="stop-color:#6a9cac;stop-opacity:0.7" />
+            <filter id="star-chalk-texture">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise"/>
+                <feColorMatrix in="noise" type="saturate" values="0" result="desaturatedNoise"/>
+                <feComponentTransfer in="desaturatedNoise" result="theNoise">
+                    <feFuncA type="table" tableValues="0 0 0.05 0"/>
+                </feComponentTransfer>
+                <feGaussianBlur in="theNoise" stdDeviation="0.5" result="blurredNoise"/>
+                <feBlend in="SourceGraphic" in2="blurredNoise" mode="multiply"/>
+            </filter>
+            
+            <linearGradient id="fade-grad" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%" stop-color="white" stop-opacity="1" />
+                <stop offset="100%" stop-color="white" stop-opacity="0" />
             </linearGradient>
 
-            <!-- Random Mask Gradients (Populated by JS) -->
-            <linearGradient id="mask-grad-1" x1="0%" y1="0%" x2="100%" y2="0%"></linearGradient>
-            <linearGradient id="mask-grad-2" x1="0%" y1="0%" x2="100%" y2="0%"></linearGradient>
+            <mask id="fade-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="url(#fade-grad)" />
+            </mask>
 
-            <mask id="mask-wave-1">
-                <rect x="0" y="0" width="100%" height="100%" fill="url(#mask-grad-1)" />
-            </mask>
-            <mask id="mask-wave-2">
-                <rect x="0" y="0" width="100%" height="100%" fill="url(#mask-grad-2)" />
-            </mask>
+            <clipPath id="sea-boundary">
+                <rect x="0" y="280" width="1600" height="80" />
+            </clipPath>
+
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#1a2c5a; stop-opacity:0.2" />
+                <stop offset="100%" style="stop-color:#1a3c5a; stop-opacity:1" />
+            </linearGradient>
         </defs>
     </svg>
 
@@ -302,8 +447,13 @@
         <button onclick="event.stopPropagation(); toggleSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full p-3 shadow-lg border-2 border-indigo-400">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
         </button>
-        <button onclick="event.stopPropagation(); captureAndSave()" id="save-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full p-3 shadow-lg border-2 border-emerald-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    </div>
+
+    <!-- MAKE A WISH BUTTON -->
+    <div id="make-wish-btn-container" class="fixed bottom-6 right-6 z-50 ui-controls">
+        <button onclick="event.stopPropagation(); openInputWishModal()" class="group flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--theme-accent)] to-yellow-500 text-slate-900 rounded-full py-3 px-6 shadow-[0_0_20px_rgba(244,225,109,0.5)] border-2 border-yellow-200 transform transition-transform hover:scale-105">
+            <span class="text-xl">✨</span>
+            <span class="font-bold font-cartoon">Make a Wish</span>
         </button>
     </div>
 
@@ -315,13 +465,52 @@
                 <button onclick="toggleSettings()" class="text-slate-400 hover:text-white">&times;</button>
             </div>
             <div class="space-y-4">
-                <input type="text" id="input-sky" class="settings-input" placeholder="Sky URL">
-                <input type="text" id="input-sea" class="settings-input" placeholder="Sea URL">
-                <input type="text" id="input-beach" class="settings-input" placeholder="Beach URL">
-                <input type="text" id="input-person" class="settings-input" placeholder="Person URL">
+                <input type="text" id="input-person" class="settings-input w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-200" placeholder="Person Image URL">
                 <button onclick="applySettings()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold shadow-md">Apply</button>
                 <button onclick="resetSettings()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg text-slate-300">Reset</button>
             </div>
+        </div>
+    </div>
+
+    <!-- INPUT WISH MODAL -->
+    <div id="input-wish-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden" onclick="event.stopPropagation()">
+        <div class="bg-[#172554] border-2 border-indigo-400 p-8 rounded-3xl max-w-md w-full mx-4 shadow-[0_0_50px_rgba(79,70,229,0.3)] relative">
+            <button onclick="closeInputWishModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            
+            <div class="text-center mb-6">
+                <h3 class="text-3xl font-cartoon text-[var(--theme-accent)] mb-2">Cast a Wish</h3>
+                <p class="text-indigo-200 text-sm">Send your wish to the shooting stars.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-indigo-300 text-sm font-bold mb-2 ml-1">Your Name</label>
+                    <input type="text" id="wish-input-name" class="w-full p-3 bg-indigo-950/50 border border-indigo-500/50 rounded-xl text-white placeholder-indigo-400 focus:outline-none focus:border-[var(--theme-accent)] transition-colors" placeholder="e.g. Star Gazer">
+                </div>
+                <div>
+                    <label class="block text-indigo-300 text-sm font-bold mb-2 ml-1">Your Wish</label>
+                    <textarea id="wish-input-text" rows="3" class="w-full p-3 bg-indigo-950/50 border border-indigo-500/50 rounded-xl text-white placeholder-indigo-400 focus:outline-none focus:border-[var(--theme-accent)] transition-colors" placeholder="I wish for..."></textarea>
+                </div>
+                
+                <button onclick="handleWishSubmit()" id="submit-wish-btn" class="w-full py-3 mt-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 rounded-xl text-white font-bold tracking-wide shadow-lg transition-all transform active:scale-95">
+                    Send to the Stars ✨
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISPLAY WISH MODAL (READING) -->
+    <div id="wish-modal" onclick="event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300">
+        <div class="bg-indigo-900/95 border-2 border-indigo-400 p-8 rounded-2xl max-w-sm w-full mx-4 text-center shadow-[0_0_40px_rgba(79,70,229,0.6)] transform transition-all scale-100 relative backdrop-blur-md">
+            <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-indigo-500 p-3 rounded-full border-4 border-indigo-900 shadow-lg">
+                <div class="text-2xl text-white">💫</div>
+            </div>
+            <h3 class="text-2xl font-cartoon text-[var(--theme-accent)] mb-4 mt-4">A Captured Wish</h3>
+            <p id="wish-text" class="text-xl text-white mb-2 font-semibold leading-relaxed font-sans italic">"..."</p>
+            <p id="wish-author" class="text-md text-indigo-300 mb-6 font-chinese-serif">-- Anonymous</p>
+            <button onclick="closeWishModal()" class="px-8 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-bold transition-transform hover:scale-105">Close</button>
         </div>
     </div>
 
@@ -344,93 +533,64 @@
             <div id="shooting-star-container" class="absolute inset-0 z-10 overflow-hidden pointer-events-none"></div>
             <div id="sky-text-content" class="absolute top-24 left-0 right-0 text-center z-20 px-4 opacity-90 animate-pulse pointer-events-none">
                 <h1 class="text-4xl md:text-6xl font-cartoon mb-2 text-white drop-shadow-[0_4px_10px_rgba(255,255,255,0.3)]">STARDUST WISHES</h1>
-                <p class="text-lg text-indigo-100 font-bold drop-shadow-md tracking-wider">Tap the falling stars!</p>
+                <p class="text-lg text-indigo-100 font-bold drop-shadow-md tracking-wider">Tap the falling stars to see wishes!</p>
             </div>
             <div id="intro-title">2025</div>
             
             <div class="ocean-container" id="ocean-container">
+                <canvas id="sea-shine-canvas"></canvas>
                 <div id="sea-sprite" class="sea-sprite"></div>
                 <div class="ocean-surface"></div>
             </div>
             
-            <div id="beach" class="beach"></div>
+            <div id="beach" class="beach">
+                <img src="transparent_beach_texture.png" alt="Beach Sand" class="beach-texture" onerror="this.style.display='none'">
+            </div>
             
-            <!-- Custom Animated Tides -->
             <div class="tide-wave-wrapper">
                 <svg id="tide-svg" class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1600 600" xmlns="http://www.w3.org/2000/svg">
-                    
-                    <!-- Background Water (Static) -->
-                    <path d="M 0,210 L 1600,210 L 1600,290 Q 1400,285 1200,288 T 800,286 T 400,284 T 0,285 Z" fill="url(#waterGrad)" opacity="0.6"/>
-                    
-                    <!-- WAVE 1 (Starts first) -->
-                    <g class="wave-layer-1" mask="url(#mask-wave-1)">
-                        <!-- Main wave body -->
-                        <path d="M 0,290 C 100,285 150,295 220,288 C 290,281 350,300 430,292 C 510,284 570,278 650,285 C 730,292 790,305 880,298 C 970,291 1050,280 1140,288 C 1230,296 1310,310 1400,303 C 1490,296 1560,285 1600,288 L 1600,340 C 1560,345 1490,338 1400,343 C 1310,348 1230,355 1140,350 C 1050,345 970,335 880,342 C 790,349 730,358 650,352 C 570,346 510,338 430,345 C 350,352 290,362 220,356 C 150,350 100,342 0,346 Z" fill="#547a88" opacity="0.7"/>
-                        
-                        <!-- Foam Segments -->
-                        <g>
-                            <ellipse cx="220" cy="340" rx="80" ry="7" fill="white" opacity="0.9">
-                                <animate attributeName="rx" values="80;140;80" dur="6s" repeatCount="indefinite"/>
-                            </ellipse>
-                            <ellipse cx="650" cy="343" rx="90" ry="8" fill="white" opacity="0.88">
-                                <animate attributeName="rx" values="90;150;90" dur="6s" repeatCount="indefinite"/>
-                            </ellipse>
-                            <ellipse cx="1140" cy="342" rx="85" ry="7" fill="white" opacity="0.9">
-                                <animate attributeName="rx" values="85;145;85" dur="6s" repeatCount="indefinite"/>
-                            </ellipse>
+                    <g class="wave-group-1">
+                        <path d="M 0,290 C 100,285 150,295 220,288 C 290,281 350,300 430,292 C 510,284 570,278 650,285 C 730,292 790,305 880,298 C 970,291 1050,280 1140,288 C 1230,296 1310,310 1400,303 C 1490,296 1560,285 1600,288 L 1600,340 C 1560,345 1490,338 1400,343 C 1310,348 1230,355 1140,350 C 1050,345 970,335 880,342 C 790,349 730,358 650,352 C 570,346 510,338 430,345 C 350,352 290,362 220,356 C 150,350 100,342 0,346 Z" fill="url(#waveGrad)" />
+                        <g class="foam-layer">
+                            <ellipse class="foam-shape" cx="220" cy="340" rx="80" ry="7" fill="white" />
+                            <ellipse class="foam-shape" cx="650" cy="343" rx="90" ry="8" fill="white" />
+                            <ellipse class="foam-shape" cx="1140" cy="342" rx="85" ry="7" fill="white" />
+                            <ellipse class="foam-shape" cx="430" cy="335" rx="30" ry="4" fill="white" opacity="0.7" />
+                            <ellipse class="foam-shape" cx="1350" cy="338" rx="40" ry="5" fill="white" opacity="0.7" />
                         </g>
                     </g>
-                    
-                    <!-- WAVE 2 (Alternates) -->
-                    <g class="wave-layer-2" mask="url(#mask-wave-2)">
-                        <!-- Main wave body -->
-                        <path d="M 0,293 C 110,288 160,298 240,291 C 320,284 380,300 465,293 C 550,286 610,280 690,287 C 770,294 830,307 920,300 C 1010,293 1090,282 1180,290 C 1270,298 1350,312 1440,305 C 1530,298 1580,287 1600,291 L 1600,345 C 1580,349 1530,343 1440,346 C 1350,349 1270,353 1180,350 C 1090,347 1010,341 920,346 C 830,351 770,356 690,352 C 610,348 550,343 465,346 C 380,349 320,355 240,351 C 160,347 110,346 0,348 Z" fill="#547a88" opacity="0.7"/>
-                        
-                        <!-- Foam Segments -->
-                        <g>
-                            <ellipse cx="240" cy="345" rx="85" ry="7" fill="white" opacity="0.9">
-                                <animate attributeName="rx" values="85;145;85" dur="6s" repeatCount="indefinite"/>
-                            </ellipse>
-                            <ellipse cx="690" cy="346" rx="92" ry="8" fill="white" opacity="0.88">
-                                <animate attributeName="rx" values="92;152;92" dur="6s" repeatCount="indefinite"/>
-                            </ellipse>
-                            <ellipse cx="1180" cy="346" rx="87" ry="7" fill="white" opacity="0.9">
-                                <animate attributeName="rx" values="87;147;87" dur="6s" repeatCount="indefinite"/>
-                            </ellipse>
+                    <g class="wave-group-2">
+                        <path d="M 0,293 C 110,288 160,298 240,291 C 320,284 380,300 465,293 C 550,286 610,280 690,287 C 770,294 830,307 920,300 C 1010,293 1090,282 1180,290 C 1270,298 1350,312 1440,305 C 1530,298 1580,287 1600,291 L 1600,345 C 1580,349 1530,343 1440,346 C 1350,349 1270,353 1180,350 C 1090,347 1010,341 920,346 C 830,351 770,356 690,352 C 610,348 550,343 465,346 C 380,349 320,355 240,351 C 160,347 110,346 0,348 Z" fill="url(#waveGrad)" />
+                        <g class="foam-layer">
+                            <ellipse class="foam-shape" cx="240" cy="345" rx="85" ry="7" fill="white" />
+                            <ellipse class="foam-shape" cx="690" cy="346" rx="92" ry="8" fill="white" />
+                            <ellipse class="foam-shape" cx="1180" cy="346" rx="87" ry="7" fill="white" />
+                            <ellipse class="foam-shape" cx="920" cy="340" rx="45" ry="5" fill="white" opacity="0.7" />
+                            <ellipse class="foam-shape" cx="1500" cy="342" rx="35" ry="4" fill="white" opacity="0.7" />
                         </g>
                     </g>
-                    
-                    <!-- STATIC BEACH (Not animated) -->
-                    <rect x="0" y="340" width="1600" height="260" fill="#d4c4a8" opacity="0.3"/>
+                    <rect x="0" y="340" width="1600" height="260" fill="#f5d197" opacity="0.3"/>
                 </svg>
             </div>
 
-            <div class="person-container">
-                <img id="person-default" src="https://images.unsplash.com/photo-1500829243541-760a598f0908?auto=format&fit=crop&w=400&q=80" alt="Person" class="person-img object-contain drop-shadow-2xl">
-                <img id="person-custom" src="" alt="" class="person-img hidden">
-            </div>
-        </div>
-        <div id="wish-modal" onclick="event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300">
-            <div class="bg-indigo-900/90 border-2 border-indigo-400 p-8 rounded-2xl max-w-sm w-full mx-4 text-center shadow-[0_0_40px_rgba(79,70,229,0.4)] transform transition-all scale-100 relative backdrop-blur-md">
-                <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-indigo-500 p-3 rounded-full border-4 border-indigo-900 shadow-lg">
-                    <div class="text-2xl text-white">✨</div>
-                </div>
-                <h3 class="text-2xl font-cartoon text-white mb-4 mt-4">Your Wish</h3>
-                <p id="wish-text" class="text-xl text-indigo-100 mb-6 font-semibold leading-relaxed font-sans"></p>
-                <button onclick="closeWishModal()" class="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 rounded-xl text-white font-bold tracking-wide transition-transform hover:scale-105 shadow-lg">Keep it close</button>
+            <div class="person-container" style="width: 200px; height: 300px;">
+                <img id="person-custom" src="chara_seph.JPG" alt="Character" class="w-full h-full object-cover drop-shadow-2xl opacity-90">
             </div>
         </div>
     </section>
 
-    <!-- SECTION 2: TIME TRAVEL -->
+    <!-- SECTION 2: TIME TRAVEL (THEME UPDATED) -->
     <section id="timeline-section" class="min-h-[150vh] py-20 relative">
         <div class="bg-glow-radial"></div>
         <div id="chalk-particles-timeline" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+        <!-- STARS CONTAINER -->
+        <div id="bg-stars-timeline" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
 
         <div class="container mx-auto px-4 relative z-10">
             <div class="text-center mb-16 relative z-30">
-                <h2 class="text-4xl md:text-5xl font-cartoon text-[var(--jade-blue)]" style="text-shadow: 2px 2px 0px rgba(0,0,0,0.1);">Time Travel</h2>
-                <p class="text-slate-400 mt-2 font-bold">Connect the dots to relive the fun</p>
+                <!-- Use theme-accent variable for text -->
+                <h2 class="text-4xl md:text-5xl font-cartoon text-[var(--theme-accent)]" style="text-shadow: 2px 2px 0px rgba(0,0,0,0.5);">Time Travel</h2>
+                <p class="text-slate-300 mt-2 font-bold">Connect the dots to relive the fun</p>
             </div>
 
             <div class="relative w-full max-w-4xl mx-auto h-[1200px]" id="timeline-container">
@@ -445,45 +605,47 @@
 
         <!-- Timeline Info Modal -->
         <div id="timeline-modal" onclick="event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-md hidden opacity-0 pointer-events-none transition-opacity duration-300">
-            <div class="bg-white border-4 border-[var(--jade-blue)] rounded-3xl overflow-hidden max-w-2xl w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="timeline-modal-content">
+            <div class="bg-white border-4 border-[var(--theme-accent)] rounded-3xl overflow-hidden max-w-2xl w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="timeline-modal-content">
                 <div class="flex flex-col md:flex-row h-full max-h-[80vh]">
                     <div class="w-full md:w-1/2 bg-slate-100 h-64 md:h-auto relative overflow-hidden group">
                         <img id="modal-img" src="" alt="Memory" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
                         <div class="absolute bottom-4 left-4">
-                            <span id="modal-date" class="px-4 py-1 bg-[var(--jade-blue)] text-white font-bold rounded-full shadow-lg font-cartoon"></span>
+                            <span id="modal-date" class="px-4 py-1 bg-[var(--theme-accent)] text-slate-900 font-bold rounded-full shadow-lg font-cartoon"></span>
                         </div>
                     </div>
                     <div class="w-full md:w-1/2 p-8 flex flex-col justify-center relative">
-                        <button onclick="closeTimelineModal()" class="absolute top-4 right-4 text-slate-400 hover:text-[var(--jade-blue)] bg-slate-50 rounded-full p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                        <h3 id="modal-title" class="text-3xl font-cartoon text-[var(--jade-blue)] mb-4"></h3>
-                        <p id="modal-desc" class="text-slate-500 leading-relaxed font-semibold"></p>
+                        <button onclick="closeTimelineModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                        <h3 id="modal-title" class="text-3xl font-cartoon text-slate-800 mb-4"></h3>
+                        <p id="modal-desc" class="text-slate-600 leading-relaxed font-semibold"></p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- SECTION 3: NEW YEAR GREETINGS -->
+    <!-- SECTION 3: NEW YEAR GREETINGS (THEME UPDATED) -->
     <section id="greeting-section" class="relative w-full h-screen flex flex-col items-center justify-center hidden transition-opacity duration-1000 opacity-0">
         <!-- Reusing Background Elements from Part 2 -->
         <div class="bg-glow-radial"></div>
         <div id="chalk-particles-greeting" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+        <!-- STARS CONTAINER -->
+        <div id="bg-stars-greeting" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
 
         <!-- Letter Text -->
         <div class="relative z-10 text-center max-w-3xl mx-auto px-6">
-            <h2 class="text-3xl md:text-4xl font-bold text-[var(--jade-blue)] mb-8 tracking-widest font-chinese-serif">致 亲爱的朋友</h2>
+            <h2 class="text-3xl md:text-4xl font-bold text-[var(--theme-accent)] mb-8 tracking-widest font-chinese-serif" style="text-shadow: 0 0 10px rgba(244, 225, 109, 0.3);">致 亲爱的朋友</h2>
 
-            <div class="space-y-6 text-xl md:text-2xl text-slate-600 font-chinese-serif leading-relaxed">
+            <div class="space-y-6 text-xl md:text-2xl text-slate-200 font-chinese-serif leading-relaxed">
                 <p>见字如面。</p>
                 <p>时光的列车已驶过昨日的站台。</p>
                 <p>感谢你收藏了这一路的星光与回忆。</p>
                 <p>愿你在新的一年里：</p>
-                <p class="text-indigo-600 font-bold text-2xl">心有山海，静而无争。</p>
+                <p class="text-[var(--theme-accent)] font-bold text-2xl" style="text-shadow: 0 0 15px rgba(244, 225, 109, 0.4);">心有山海，静而无争。</p>
                 <p>万事胜意，岁岁平安。</p>
             </div>
 
             <div class="mt-16">
-                <p class="text-4xl md:text-6xl font-cartoon text-[var(--jade-blue)] drop-shadow-sm">2025 新年快乐!</p>
+                <p class="text-4xl md:text-6xl font-cartoon text-[var(--theme-accent)] drop-shadow-sm">2025 新年快乐!</p>
             </div>
         </div>
     </section>
@@ -498,10 +660,6 @@
             introActive = false;
             document.body.classList.remove('intro-mode');
             
-            // Start Tide Mask Animations Loop
-            startTideMaskLoop();
-
-            // Audio Play Logic 
             const music = document.getElementById('bg-music');
             music.play().then(() => {
                 document.getElementById('icon-play').classList.add('hidden');
@@ -523,104 +681,6 @@
                spawnShootingStar(); 
             }, 8000);
         }
-
-        // --- DYNAMIC TIDE MASK LOGIC ---
-        function startTideMaskLoop() {
-            // Initial call for Wave 1 (starts at T=0)
-            animateTideMask('mask-grad-1');
-            
-            // Interval for Wave 1 (Every 12s)
-            setInterval(() => {
-                animateTideMask('mask-grad-1');
-            }, 12000);
-
-            // Delayed call for Wave 2 (starts at T=6)
-            setTimeout(() => {
-                animateTideMask('mask-grad-2');
-                // Interval for Wave 2 (Every 12s)
-                setInterval(() => {
-                    animateTideMask('mask-grad-2');
-                }, 12000);
-            }, 6000);
-        }
-
-        function animateTideMask(gradientId) {
-            const grad = document.getElementById(gradientId);
-            if (!grad) return;
-
-            // Generate 3-6 random centers
-            const numPoints = Math.floor(Math.random() * 4) + 3;
-            const points = [];
-            for(let i=0; i<numPoints; i++) {
-                // Ensure points are somewhat spread out (10% to 90%)
-                points.push(Math.random() * 80 + 10);
-            }
-            points.sort((a,b) => a-b);
-
-            // Build gradient stops string
-            // We want opaque (white) everywhere except at the points
-            // At point P: P-2%(100%), P-1%(20%), P(40%), P+1%(20%), P+2%(100%)
-            // Using <stop> elements directly for animation support
-            
-            // Clear existing
-            grad.innerHTML = '';
-            
-            // Always start with 100%
-            addStop(grad, "0%", 1);
-
-            let currentPos = 0;
-            points.forEach(p => {
-                if (p - 3 > currentPos) addStop(grad, (p-3)+"%", 1);
-                
-                // create the dip stops with IDs so we can animate them
-                const s1 = addStop(grad, (p-2)+"%", 1);
-                const s2 = addStop(grad, (p-1)+"%", 0.2); // Dip start
-                const s3 = addStop(grad, p+"%", 0.4);     // Dip center
-                const s4 = addStop(grad, (p+1)+"%", 0.2); // Dip end
-                const s5 = addStop(grad, (p+2)+"%", 1);
-
-                // Animate s2, s3, s4 to 1 over 4s (duration of the surge in)
-                animateStopOpacity(s2, 0.2, 1, 4000);
-                animateStopOpacity(s3, 0.4, 1, 4000);
-                animateStopOpacity(s4, 0.2, 1, 4000);
-
-                currentPos = p + 3;
-            });
-
-            addStop(grad, "100%", 1);
-        }
-
-        function addStop(parent, offset, opacity) {
-            const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-            stop.setAttribute("offset", offset);
-            stop.setAttribute("stop-color", "white");
-            stop.setAttribute("stop-opacity", opacity);
-            parent.appendChild(stop);
-            return stop;
-        }
-
-        function animateStopOpacity(element, startVal, endVal, duration) {
-            // Using Web Animations API on SVG attributes (works in modern browsers)
-            // Or simple requestAnimationFrame if attribute interpolation is tricky
-            // Simulating via simple interval for compatibility
-            const startTime = performance.now();
-            
-            function step(time) {
-                const elapsed = time - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                // Ease out cubic
-                const ease = 1 - Math.pow(1 - progress, 3);
-                
-                const current = startVal + (endVal - startVal) * ease;
-                element.setAttribute("stop-opacity", current);
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                }
-            }
-            requestAnimationFrame(step);
-        }
-
 
         function toggleMusic() {
             const music = document.getElementById('bg-music');
@@ -652,8 +712,10 @@
             }
         }
         
-        const wishes = ["Courage!", "Good vibes!", "Great job!", "Love yourself!", "Adventure!", "Stay happy.", "Big surprise!", "Let go.", "You are strong!"];
+        // --- UPDATED SHOOTING STAR & WISH LOGIC ---
+        const defaultWishes = ["Courage!", "Good vibes!", "Great job!", "Love yourself!", "Adventure!", "Stay happy.", "Big surprise!", "Let go.", "You are strong!"];
         const shootingStarContainer = document.getElementById('shooting-star-container');
+
         function spawnShootingStar() {
             const star = document.createElement('div'); star.classList.add('shooting-star');
             const startX = 80 + Math.random() * 20; const startY = Math.random() * 30; const width = 100 + Math.random() * 120;
@@ -661,18 +723,173 @@
             const duration = 3 + Math.random() * 2; 
             star.style.animation = `shoot-blink ${duration}s linear forwards`;
             const hitbox = document.createElement('div'); hitbox.classList.add('shooting-star-hitbox'); star.appendChild(hitbox);
+            
+            // Interaction: Open Wish from DB
             star.addEventListener('click', (e) => {
                 e.stopPropagation();
-                document.getElementById('wish-text').innerText = wishes[Math.floor(Math.random() * wishes.length)];
+                let wishContent = "A secret wish...";
+                let wishAuthor = "Anonymous";
+
+                if (window.userWishes && window.userWishes.length > 0) {
+                    const randomWish = window.userWishes[Math.floor(Math.random() * window.userWishes.length)];
+                    wishContent = randomWish.wish;
+                    wishAuthor = randomWish.name;
+                } else {
+                    wishContent = defaultWishes[Math.floor(Math.random() * defaultWishes.length)];
+                    wishAuthor = "The Universe";
+                }
+
+                document.getElementById('wish-text').innerText = `"${wishContent}"`;
+                document.getElementById('wish-author').innerText = `-- ${wishAuthor}`;
                 document.getElementById('wish-modal').classList.remove('hidden');
-                star.remove();
+                
+                // Cleanup star visually
+                star.style.opacity = '0';
             });
             shootingStarContainer.appendChild(star);
             setTimeout(() => { if(star.parentElement) star.remove(); }, duration * 1000);
         }
-        function closeWishModal() { document.getElementById('wish-modal').classList.add('hidden'); }
 
-        // --- Timeline Logic ---
+        function closeWishModal() { document.getElementById('wish-modal').classList.add('hidden'); }
+        
+        // --- INPUT WISH LOGIC ---
+        function openInputWishModal() {
+             document.getElementById('input-wish-modal').classList.remove('hidden');
+        }
+        function closeInputWishModal() {
+             document.getElementById('input-wish-modal').classList.add('hidden');
+        }
+        
+        async function handleWishSubmit() {
+            const nameInput = document.getElementById('wish-input-name');
+            const wishInput = document.getElementById('wish-input-text');
+            const submitBtn = document.getElementById('submit-wish-btn');
+            
+            const name = nameInput.value.trim();
+            const wish = wishInput.value.trim();
+            
+            if (!wish) {
+                alert("Please enter a wish!"); // Browser alert fallback for simplicity here
+                return;
+            }
+            
+            submitBtn.innerText = "Sending...";
+            submitBtn.disabled = true;
+
+            const result = await window.submitWishToFire(name, wish);
+            
+            submitBtn.innerText = "Send to the Stars ✨";
+            submitBtn.disabled = false;
+            
+            if (result.success) {
+                // Clear and Close
+                wishInput.value = "";
+                closeInputWishModal();
+                // Show a mini confirmation (reuse read modal for now or just subtle)
+                // Let's reuse the read modal to confirm
+                document.getElementById('wish-text').innerText = "Your wish has been sent to the stars!";
+                document.getElementById('wish-author').innerText = "";
+                document.getElementById('wish-modal').classList.remove('hidden');
+            } else {
+                alert("Error sending wish: " + (result.error || "Unknown"));
+            }
+        }
+
+
+        const seaCanvas = document.getElementById('sea-shine-canvas');
+        const seaCtx = seaCanvas.getContext('2d');
+        const oceanContainer = document.getElementById('ocean-container');
+
+        let seaWidth, seaHeight;
+        let particles = [];
+        const particleCount = 2000; 
+
+        const config = {
+            horizonY: -0.2, 
+            swaySpeed: 0.001,
+            swayAmp: 0.1, 
+            baseColor: { r: 0, g: 30, b: 60 },
+            highlightColor: { r: 200, g: 250, b: 240 } 
+        };
+
+        class Particle {
+            constructor() { this.init(); }
+            init() {
+                const yBias = Math.pow(Math.random(), 3); 
+                const effectiveHeight = seaHeight * 1.5; 
+                this.y = (config.horizonY * seaHeight) + (yBias * effectiveHeight);
+                this.y = Math.max(0, Math.min(seaHeight, this.y));
+                
+                this.x = Math.random() * seaWidth;
+                this.phase = Math.random() * Math.PI * 2;
+                this.size = 1 + (yBias * 3); 
+                this.length = 4 + (yBias * 20); 
+                this.speed = 1 + yBias * 2; 
+            }
+            update(time, lightX) {
+                this.x += Math.sin(time * 0.5 + this.y * 0.01) * 0.2;
+                if (this.x > seaWidth) this.x = 0;
+                if (this.x < 0) this.x = seaWidth;
+
+                const distToLight = Math.abs(this.x - lightX);
+                const yNorm = this.y / seaHeight;
+                const lightSpread = 100 + (yNorm * 200); 
+                let intensity = Math.exp(-(distToLight * distToLight) / (2 * lightSpread * lightSpread));
+                
+                const beachFade = Math.max(0, 1 - (yNorm * 1.5)); 
+                intensity *= beachFade;
+
+                const twinkle = Math.sin(time * 3 + this.phase);
+                
+                let ambient = 0.05 * beachFade; 
+                
+                if (intensity < 0.01) intensity = ambient; 
+                if (intensity > 0.2) intensity += twinkle * 0.2;
+                intensity = Math.max(0, Math.min(1, intensity));
+                return intensity;
+            }
+            draw(intensity) {
+                const r = config.baseColor.r + (config.highlightColor.r - config.baseColor.r) * intensity;
+                const g = config.baseColor.g + (config.highlightColor.g - config.baseColor.g) * intensity;
+                const b = config.baseColor.b + (config.highlightColor.b - config.baseColor.b) * intensity;
+                const a = 0.3 + (intensity * 0.7);
+                seaCtx.fillStyle = `rgba(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)}, ${a})`;
+                seaCtx.beginPath();
+                seaCtx.ellipse(this.x, this.y, this.length / 2, this.size / 2, 0, 0, Math.PI * 2);
+                seaCtx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) particles.push(new Particle());
+        }
+
+        function resizeSea() {
+            seaWidth = seaCanvas.width = oceanContainer.offsetWidth;
+            seaHeight = seaCanvas.height = oceanContainer.offsetHeight;
+            initParticles();
+        }
+        window.addEventListener('resize', resizeSea);
+
+        function animateSea(t) {
+            const time = t * 0.001; 
+            seaCtx.clearRect(0, 0, seaWidth, seaHeight);
+
+            const centerX = seaWidth / 2;
+            const swayOffset = Math.sin(time * 0.5) * (seaWidth * config.swayAmp);
+            const currentLightX = centerX + swayOffset;
+
+            particles.forEach(p => {
+                const intensity = p.update(time, currentLightX);
+                p.draw(intensity);
+            });
+            requestAnimationFrame(animateSea);
+        }
+
+        resizeSea();
+        requestAnimationFrame(animateSea);
+
         const timelineData = [
             { id: 1, date: "Jan", title: "New Year", desc: "Started with dreams.", img: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=400&q=80" },
             { id: 2, date: "Mar", title: "Spring", desc: "Nature woke up.", img: "https://images.unsplash.com/photo-1490750967868-58cb75069ed6?auto=format&fit=crop&w=400&q=80" },
@@ -776,7 +993,6 @@
 
             openTimelineModal(data);
 
-            // Logic to reveal next dot
             if (index === visibleDotIndex && index < timelineData.length - 1) {
                 const maskPath = document.getElementById(`mask-path-${index}`);
                 const nextDot = document.getElementById(`dot-${index+1}`);
@@ -790,12 +1006,10 @@
                 }, 2000); 
             }
             
-            // Logic for completing the journey (Last Dot)
             if (index === timelineData.length - 1) {
                 isJourneyComplete = true;
                 const section3 = document.getElementById('greeting-section');
                 section3.classList.remove('hidden');
-                // Allow display block to apply before fading in
                 requestAnimationFrame(() => {
                     section3.classList.remove('opacity-0');
                 });
@@ -818,6 +1032,33 @@
             }
         }
 
+        // --- BACKGROUND STARS ---
+        function createBackgroundStars(containerId, count) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            
+            const starSVGContent = `
+                <svg class="bg-star" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: SIZEpx; height: SIZEpx; left: LEFTPOS%; top: TOPPOS%; --delay: DELAYs;">
+                    <polygon points="100,20 115,85 180,100 115,115 100,180 85,115 20,100 85,85"/>
+                </svg>
+            `;
+
+            for(let i=0; i<count; i++) {
+                const size = Math.floor(Math.random() * 30) + 20;
+                const left = Math.floor(Math.random() * 80) + 10;
+                const top = Math.floor(Math.random() * 80) + 10;
+                const delay = Math.random() * 3;
+
+                let html = starSVGContent
+                    .replace(/SIZE/g, size)
+                    .replace('LEFTPOS', left)
+                    .replace('TOPPOS', top)
+                    .replace('DELAY', delay);
+                
+                container.insertAdjacentHTML('beforeend', html);
+            }
+        }
+
         function openTimelineModal(data) {
             const m = document.getElementById('timeline-modal');
             document.getElementById('modal-img').src = data.img;
@@ -834,7 +1075,6 @@
             setTimeout(() => {
                 m.classList.add('hidden', 'pointer-events-none');
                 
-                // If the journey is complete, scroll to the letter after closing the modal
                 if(isJourneyComplete) {
                     setTimeout(() => {
                         document.getElementById('greeting-section').scrollIntoView({ behavior: 'smooth' });
@@ -845,9 +1085,10 @@
 
         createStars();
         drawTimeline();
-        // generateTideWave(); // Removed as using static SVG
         createChalkParticles('chalk-particles-timeline');
         createChalkParticles('chalk-particles-greeting');
+        createBackgroundStars('bg-stars-timeline', 15);
+        createBackgroundStars('bg-stars-greeting', 20);
         
         let resizeT;
         window.addEventListener('resize', () => {
@@ -858,9 +1099,12 @@
             }, 100);
         });
 
-        function applySettings() { toggleSettings(); }
-        function resetSettings() { toggleSettings(); }
-        function captureAndSave() { alert("Capture function placeholder"); }
+        function applySettings() { 
+            const url = document.getElementById('input-person').value;
+            if(url) document.getElementById('person-custom').src = url;
+            toggleSettings(); 
+        }
+        function resetSettings() { document.getElementById('person-custom').src = "chara_seph.JPG"; toggleSettings(); }
     </script>
 </body>
 </html>
