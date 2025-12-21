@@ -1,4 +1,4 @@
-Put your HTML text here<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -452,24 +452,18 @@ Put your HTML text here<!DOCTYPE html>
                 <div class="ocean-surface"></div>
             </div>
             
-<div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[16] pointer-events-none">
+<div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-75 animate-boat z-[16] pointer-events-none">
     
-    <div class="relative w-full z-10">
-        <img src="ship_copy.png" alt="Boat V1" class="w-full opacity-100 drop-shadow-lg filter brightness-75">
-        <img id="boat-v2" src="ship_copy.png" alt="Boat V2" 
-             class="absolute top-0 left-0 w-full opacity-0 drop-shadow-lg filter brightness-75 transition-opacity duration-1000">
-    </div>
+    <img src="ship_copy.png" alt="Boat" class="w-full opacity-80 drop-shadow-lg filter brightness-75 relative z-10">
     
     <svg id="boat-splash" 
-         class="absolute bottom-[7px] left-0 w-full h-[30px] z-0 opacity-50 mix-blend-screen" 
+         class="absolute bottom-[3px] left-0 w-full h-[30px] z-0 opacity-50 mix-blend-screen" 
          viewBox="0 0 100 30" 
          preserveAspectRatio="none">
         <defs>
             <linearGradient id="splashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" style="stop-color:#f0f9ff; stop-opacity:0" />
-                
                 <stop offset="50%" style="stop-color:#f0f9ff; stop-opacity:0.8" />
-                
                 <stop offset="100%" style="stop-color:#f0f9ff; stop-opacity:0" />
             </linearGradient>
 
@@ -823,7 +817,7 @@ Put your HTML text here<!DOCTYPE html>
         resizeSea();
         requestAnimationFrame(animateSea);
         
-// --- 1. BOAT SPLASH ANIMATION (Updated Ranges) ---
+// --- BOAT SPLASH ANIMATION ---
         function initBoatSplash() {
             const splashPath = document.getElementById('splash-path');
             if (!splashPath) return;
@@ -838,16 +832,13 @@ Put your HTML text here<!DOCTYPE html>
                     const taper = Math.sin((i / pointsCount) * Math.PI);
                     
                     // Center Peak: 3px to 5px
-                    const centerRandom = 4 + Math.random() * 3; 
+                    const centerRandom = 5 + Math.random() * 3; 
                     
                     // Ends: 1px to 3px
                     const endRandom = 1 + Math.random() * 2;    
 
-                    // Mix them based on position
                     let amp = (endRandom * (1 - taper)) + (centerRandom * taper);
-                    
-                    // Add small noise
-                    amp += (Math.random() - 0.5); 
+                    amp += (Math.random() - 0.5); // Small noise
 
                     amplitudes.push(Math.max(0, amp)); 
                 }
@@ -895,27 +886,7 @@ Put your HTML text here<!DOCTYPE html>
             splashPath.setAttribute('d', frames[0]);
         }
 
-        // --- 2. BOAT TOGGLE ANIMATION (New) ---
-        function initBoatToggle() {
-            const v2 = document.getElementById('boat-v2');
-            if(!v2) return;
-
-            // Loop to toggle visibility
-            setInterval(() => {
-                // 1. Show Version 2
-                v2.classList.remove('opacity-0');
-                
-                // 2. Hide it again after 2.5 seconds
-                setTimeout(() => {
-                    v2.classList.add('opacity-0');
-                }, 2500);
-
-            }, 6000); // Runs every 6 seconds
-        }
-
-        // Start animations
         initBoatSplash();
-        initBoatToggle();
 
         // --- TIMELINE LOGIC ---
         const timelineData = [
