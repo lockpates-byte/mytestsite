@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+Put your HTML text here<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -452,10 +452,38 @@
                 <div class="ocean-surface"></div>
             </div>
             
-            <div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[18] pointer-events-none">
-                <img src="ship_copy.png" alt="Boat" class="w-full opacity-80 drop-shadow-lg filter brightness-75">
-            </div>
+<div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[18] pointer-events-none">
+    
+    <div class="relative w-full z-10">
+        <img src="ship0.png" alt="Boat V1" class="w-full opacity-80 drop-shadow-lg filter brightness-75">
+        
+        <img id="boat-v2" src="ship1.png" alt="Boat V2" 
+             class="absolute top-0 left-0 w-full opacity-0 drop-shadow-lg filter brightness-75 transition-opacity duration-1000">
+    </div>
+    
+    <svg id="boat-splash" 
+         class="absolute bottom-[3px] left-0 w-full h-[30px] z-0 opacity-80 mix-blend-screen" 
+         viewBox="0 0 100 30" 
+         preserveAspectRatio="none">
+        <defs>
+            <linearGradient id="splashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#22d3ee; stop-opacity:0.4" />
+                <stop offset="50%" style="stop-color:#a5f3fc; stop-opacity:0.9" />
+                <stop offset="100%" style="stop-color:#22d3ee; stop-opacity:0.4" />
+            </linearGradient>
 
+            <filter id="splash-blur">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="0.3" />
+            </filter>
+        </defs>
+        <path id="splash-path" 
+              fill="url(#splashGrad)" 
+              filter="url(#splash-blur)"
+              d="" 
+              style="transition: d 1s ease-in-out;">
+        </path>
+    </svg>
+</div>
             <div id="beach" class="beach">
                 <img src="transparent_beach_texture.png" alt="Beach Sand" class="beach-texture" onerror="this.style.display='none'">
             </div>
@@ -792,6 +820,100 @@
 
         resizeSea();
         requestAnimationFrame(animateSea);
+        
+// --- 1. BOAT SPLASH ANIMATION (Updated Ranges) ---
+        function initBoatSplash() {
+            const splashPath = document.getElementById('splash-path');
+            if (!splashPath) return;
+
+            const pointsCount = 50; 
+            const width = 100;
+            const centerY = 15; 
+
+            function generateWaveform() {
+                let amplitudes = [];
+                for(let i=0; i<=pointsCount; i++) {
+                    const taper = Math.sin((i / pointsCount) * Math.PI);
+                    
+                    // Center Peak: 3px to 5px
+                    const centerRandom = 3 + Math.random() * 2; 
+                    
+                    // Ends: 1px to 3px
+                    const endRandom = 1 + Math.random() * 2;    
+
+                    // Mix them based on position
+                    let amp = (endRandom * (1 - taper)) + (centerRandom * taper);
+                    
+                    // Add small noise
+                    amp += (Math.random() - 0.5); 
+
+                    amplitudes.push(Math.max(0, amp)); 
+                }
+
+                const step = width / pointsCount;
+                let d = `M 0 ${centerY} `; 
+                
+                // TOP HALF
+                for (let i = 0; i <= pointsCount; i++) {
+                    const x = i * step;
+                    const y = centerY - amplitudes[i]; 
+                    if (i === 0) d += `L ${x} ${y} `; 
+                    else {
+                        const prevX = (i - 1) * step;
+                        const midX = (prevX + x) / 2;
+                        d += `Q ${midX} ${y} ${x} ${y} `;
+                    }
+                }
+
+                // BOTTOM HALF
+                for (let i = pointsCount; i >= 0; i--) {
+                    const x = i * step;
+                    const y = centerY + amplitudes[i]; 
+                    if (i === pointsCount) d += `L ${x} ${y} `; 
+                    else {
+                        const prevX_actual = (i + 1) * step;
+                        const midX = (prevX_actual + x) / 2;
+                        d += `Q ${midX} ${y} ${x} ${y} `;
+                    }
+                }
+                d += "Z";
+                return d;
+            }
+
+            const frames = [generateWaveform(), generateWaveform(), generateWaveform(), generateWaveform()];
+            let frameIndex = 0;
+
+            setInterval(() => {
+                splashPath.setAttribute('d', frames[frameIndex]);
+                frameIndex = (frameIndex + 1) % frames.length;
+                if (frameIndex === 0 && Math.random() > 0.5) {
+                    frames[Math.floor(Math.random() * frames.length)] = generateWaveform();
+                }
+            }, 1000);
+            splashPath.setAttribute('d', frames[0]);
+        }
+
+        // --- 2. BOAT TOGGLE ANIMATION (New) ---
+        function initBoatToggle() {
+            const v2 = document.getElementById('boat-v2');
+            if(!v2) return;
+
+            // Loop to toggle visibility
+            setInterval(() => {
+                // 1. Show Version 2
+                v2.classList.remove('opacity-0');
+                
+                // 2. Hide it again after 2.5 seconds
+                setTimeout(() => {
+                    v2.classList.add('opacity-0');
+                }, 2500);
+
+            }, 6000); // Runs every 6 seconds
+        }
+
+        // Start animations
+        initBoatSplash();
+        initBoatToggle();
 
         // --- TIMELINE LOGIC ---
         const timelineData = [
