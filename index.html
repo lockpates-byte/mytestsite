@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starlight & Memories</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- MODIFICATION 1: Ensure your config is correct ---
+        // Make sure these keys match YOUR Firebase Console > Project Settings
+        const firebaseConfig = {
+        // These are the placeholders GitHub will look for
+            apiKey: "FIREBASE_API_KEY_PLACEHOLDER",
+            authDomain: "FIREBASE_AUTH_DOMAIN_PLACEHOLDER",
+            projectId: "FIREBASE_PROJECT_ID_PLACEHOLDER",
+            storageBucket: "FIREBASE_STORAGE_BUCKET_PLACEHOLDER",
+            messagingSenderId: "FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER",
+            appId: "FIREBASE_APP_ID_PLACEHOLDER",
+            measurementId: "FIREBASE_MEASUREMENT_ID_PLACEHOLDER"
+        };
+
+        // Initialize Firebase
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Firebase init failed. Did you replace the config keys?", e);
+        }
+
+        // Global State for Wishes
+        window.userWishes = [];
+
+        // Auth & Data Logic
+        async function initApp() {
+            if (!auth) return;
+
+            try {
+                // Simplified Auth for GitHub Pages
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Auth Error (Did you enable Anonymous Auth in Console?):", error);
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    console.log("User authenticated:", user.uid);
+                    setupWishesListener();
+                }
+            });
+        }
+
+        function setupWishesListener() {
+            if (!db) return;
+
+            const q = query(collection(db, 'wishes'));
+
+            onSnapshot(q, (snapshot) => {
+                const wishes = [];
+                snapshot.forEach((doc) => {
+                    wishes.push(doc.data());
+                });
+                // Sort by timestamp descending
+                wishes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                
+                window.userWishes = wishes;
+                
+                // --- MODIFICATION 2: Update the Live Counter UI ---
+                const counterEl = document.getElementById('wish-counter-text');
+                if(counterEl) {
+                    counterEl.innerText = `${wishes.length} wishes collected`;
+                    counterEl.classList.remove('opacity-0');
+                }
+                console.log("Wishes updated:", window.userWishes.length);
+            }, (error) => {
+                console.error("Error listening to wishes (Did you enable Firestore in Console?):", error);
+            });
+        }
+
+        // Expose function to window for the UI to call
+        window.submitWishToFire = async function(name, wishText) {
+            if (!auth || !auth.currentUser) return { error: "Not connected to database" };
+            
+            try {
+                await addDoc(collection(db, 'wishes'), {
+                    name: name || "Anonymous Star",
+                    wish: wishText,
+                    timestamp: serverTimestamp(),
+                    uid: auth.currentUser.uid
+                });
+                return { success: true };
+            } catch (e) {
+                console.error("Error adding wish:", e);
+                return { error: e.message };
+            }
+        };
+
+        // Start App
+        initApp();
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&family=Noto+Serif+SC:wght@500;700&display=swap');
+
+        :root {
+            --sky-bg: linear-gradient(to bottom, #000000 0%, #050A1E 40%, #0a1128 70%, #1a2c5a 100%);
+            --sand-base: #f5d197; 
+            --beach-bg: linear-gradient(to top, #d4b580, #0f0c08);
+            --starry-night-bg: #173679;
+            --theme-accent: #f4e16d;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
+            background-color: #000000;
+            transition: background-color 3s ease 1s;
+        }
+
+        body:not(.intro-mode) {
+            background-color: #020617;
+        }
+
+        h1, h2, h3, .font-cartoon {
+            font-family: 'Fredoka One', cursive;
+            letter-spacing: 1px;
+        }
+
+        .font-chinese-serif {
+            font-family: 'Noto Serif SC', 'SimSun', 'Songti SC', serif;
+        }
+
+        /* --- SECTION 1: STARRY SKY --- */
+        .sky-layer {
+            background: var(--sky-bg);
+            background-size: cover;
+            background-position: center;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            opacity: 1;
+            transition: opacity 3s ease 2.5s; 
+        }
+
+        body.intro-mode { overflow: hidden; }
+        body.intro-mode .sky-viewport { transform: none; }
+
+        body.intro-mode .ocean-container, body.intro-mode .beach, body.intro-mode .tide-wave-wrapper { opacity: 0; pointer-events: none; }
+        body.intro-mode .sky-layer, 
+        body.intro-mode #star-field, 
+        body.intro-mode #shooting-star-container, 
+        body.intro-mode .ui-controls, 
+        body.intro-mode #sky-text-content,
+        body.intro-mode #make-wish-btn-container { opacity: 0; pointer-events: none; }
+        
+        body.intro-mode #extra-img-layer,
+        body.intro-mode #companion-container,
+        body.intro-mode #wandering-creature,
+        body.intro-mode #boat-container { opacity: 0; pointer-events: none; transition: opacity 2s ease; animation: none; }
+
+        .beach, .ocean-container, .tide-wave-wrapper { transition: opacity 2s ease 0.5s; }
+        #star-field { opacity: 1; transition: opacity 1s ease 2.5s; }
+
+        #intro-title {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            font-family: 'Fredoka One', cursive; font-size: 4rem; color: white; z-index: 50;
+            opacity: 0; transition: opacity 1s ease; text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            pointer-events: none;
+        }
+        body.intro-mode #intro-title { opacity: 1; }
+
+        .sky-viewport { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+        .star {
+            position: absolute; background: #fff; border-radius: 50%;
+            animation: twinkle var(--duration) ease-in-out infinite;
+            animation-delay: var(--delay);
+            box-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+            opacity: 0; transition: opacity 2s ease;
+        }
+        .star.revealed { opacity: 1; }
+
+        @keyframes twinkle { 0% { transform: scale(0.5); } 50% { transform: scale(1.1); } 100% { transform: scale(0.5); } }
+
+        .shooting-star {
+            position: absolute; height: 2px;
+            background: linear-gradient(90deg, rgba(255,255,255,1), rgba(255,255,255,0));
+            border-radius: 999px; filter: drop-shadow(0 0 4px rgba(255,255,255,0.9));
+            opacity: 0; cursor: pointer; z-index: 20; pointer-events: auto; transform-origin: left center;
+        }
+        .shooting-star::after {
+            content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            width: 4px; height: 4px; background: white; border-radius: 50%; box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.8);
+        }
+        .shooting-star-hitbox { position: absolute; top: -30px; bottom: -30px; left: -30px; right: -30px; cursor: pointer; }
+
+        @keyframes shoot-blink {
+            0% { transform: translate(0, 0) rotate(-25deg) scale(1); opacity: 1; }
+            70% { opacity: 1; }
+            75% { opacity: 0.2; } 80% { opacity: 1; } 85% { opacity: 0; } 90% { opacity: 0.8; }
+            100% { transform: translate(-120vh, 60vh) rotate(-25deg) scale(0.8); opacity: 0; }
+        }
+
+        .ocean-container {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 25vh; z-index: 10;
+            overflow: hidden; pointer-events: none;
+            background: linear-gradient(to bottom, #1a2c5a 0%, #1a2c5a 40%, transparent 100%);
+        }
+        .ocean-surface {
+            position: absolute; inset: 0;
+            background: transparent;
+        }
+        
+        #sea-shine-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0.8;
+            mix-blend-mode: plus-lighter;
+        }
+
+        .tide-wave-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 35vh; 
+            z-index: 16; pointer-events: none; overflow: visible;
+        }
+
+        .wave-group-1 { animation: tide-cycle 8s cubic-bezier(0.4, 0, 0.2, 1) infinite; opacity: 0; transform-box: fill-box; transform-origin: center; }
+        .wave-group-2 { animation: tide-cycle 8s cubic-bezier(0.4, 0, 0.2, 1) infinite; animation-delay: 4s; opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+        @keyframes tide-cycle {
+            0% { transform: translateY(-30px) scaleY(0.95); opacity: 0; }
+            20% { opacity: 0.8; }
+            50% { transform: translateY(20px) scaleY(1); opacity: 1; } 
+            75% { opacity: 0; } 
+            100% { transform: translateY(40px) scaleY(1.05); opacity: 0; }
+        }
+
+        .foam-shape { transform-box: fill-box; transform-origin: center; animation: foam-spread 8s ease-in-out infinite; }
+        .wave-group-2 .foam-shape { animation-delay: 4s; }
+
+        @keyframes foam-spread {
+            0% { transform: scaleX(0.8) translateY(-5px); opacity: 0; }
+            35% { opacity: 1; } 
+            65% { transform: scaleX(1.5) translateY(15px); opacity: 0; } 
+            100% { transform: scaleX(1.8) translateY(20px); opacity: 0; }
+        }
+
+        .sea-sprite { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0.8; display: none; }
+
+        .beach {
+            position: absolute; bottom: 0; width: 100%; height: 12vh;
+            background: var(--beach-bg); background-size: cover; background-position: center bottom;
+            z-index: 15; box-shadow: 0 -5px 30px rgba(0,0,0,0.8); background-color: var(--sand-base);
+            position: absolute; overflow: hidden; 
+        }
+        .beach::after { content: ''; position: absolute; top: 100%; left: 0; width: 100%; height: 100vh; background-color: var(--sand-base); }
+
+        .beach-texture { position: absolute; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0.8; }
+
+        .person-container {
+            position: absolute; z-index: 20; bottom: 3vh; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 200px; display: flex; align-items: flex-end; justify-content: center;
+        }
+        .person-img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 0 20px rgba(0,0,0,0.9)) brightness(0.6); }
+
+        .glass-panel { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; }
+        .ui-controls { transition: opacity 1s ease; }
+        #sky-text-content { transition: opacity 2s ease 2.5s; }
+        #make-wish-btn-container { transition: opacity 2s ease 3s; }
+
+        /* --- SECTION 2 & 3: LIGHT THEME --- */
+        #timeline-section, #greeting-section { background-color: var(--starry-night-bg); position: relative; overflow: hidden; color: #ffffff; }
+
+        .bg-glow-radial {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; height: 90%;
+            background: radial-gradient(ellipse at center, rgba(30, 58, 138, 0.5) 0%, rgba(23, 54, 121, 0) 70%);
+            z-index: 0; pointer-events: none;
+        }
+
+        .chalk-particle {
+            position: absolute; background: var(--theme-accent); border-radius: 50%; opacity: 0.3; pointer-events: none;
+            animation: float-chalk var(--duration) ease-in-out infinite;
+        }
+        @keyframes float-chalk {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-20px) translateX(10px); }
+        }
+
+        .path-segment { fill: none; stroke: var(--theme-accent); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 15, 8; filter: url(#chalk-texture); opacity: 0.9; }
+        
+        .timeline-dot {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 0;
+            transform: translate(-50%, -50%) scale(0);
+            background-color: var(--theme-accent); border: 4px solid #1e3a8a; filter: url(#chalk-texture); 
+        }
+        .timeline-dot.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .timeline-dot.visible:hover { transform: translate(-50%, -50%) scale(1.1); cursor: pointer; }
+
+        .dot-avatar {
+            position: absolute; width: 240px; height: 240px; border-radius: 50%; top: 50%; transform: translateY(-50%);
+            opacity: 0; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 25; transform-origin: center; scale: 0;
+        }
+        .dot-avatar.show { opacity: 1; pointer-events: auto; scale: 1; }
+        
+        .dot-avatar-img { width: 150px; height: 150px; object-fit: cover; border-radius: 50%; z-index: 5; position: relative; }
+
+        .bg-star {
+            position: absolute; transform: translate(-50%, -50%); filter: url(#star-chalk-texture); z-index: 1; pointer-events: none;
+            animation: star-pulse 3s infinite ease-in-out; animation-delay: var(--delay);
+        }
+        .bg-star polygon { fill: #f4e16d; stroke: #e6d25a; stroke-width: 2; filter: drop-shadow(0 0 10px rgba(244, 225, 109, 0.5)); }
+
+        @keyframes star-pulse { 0%, 100% { transform: translate(-50%, -50%) scale(0.8); } 50% { transform: translate(-50%, -50%) scale(1.2); } }
+        @keyframes double-blink { 0% { opacity: 0; } 10% { opacity: 1; } 25% { opacity: 1; } 30% { opacity: 0; } 40% { opacity: 1; } 55% { opacity: 1; } 60% { opacity: 0; } 100% { opacity: 0; } }
+        @keyframes wander-fade { 0% { opacity: 0; transform: translateX(100px); } 20% { opacity: 1; transform: translateX(0); } 40% { opacity: 1; transform: translateX(-20px); } 60% { opacity: 1; transform: translateX(-20px); } 80% { opacity: 1; transform: translateX(-40px); } 90% { opacity: 0; transform: translateX(-60px); } 100% { opacity: 0; transform: translateX(-60px); } }
+        @keyframes boat-sail { 0% { transform: translateX(-60vw) rotate(1deg); } 50% { transform: translateX(0) rotate(-1deg); } 100% { transform: translateX(60vw) rotate(1deg); } }
+        
+        .animate-double-blink { animation: double-blink 8s infinite ease-in-out; }
+        .animate-wander { animation: wander-fade 10s infinite linear; }
+        .animate-boat { animation: boat-sail 60s linear infinite; }
+
+    </style>
+</head>
+<body class="text-slate-100 intro-mode" onclick="startJourney()">
+
+    <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <filter id="chalk-texture" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="1" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <filter id="chalk-texture-small" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="1" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <filter id="star-chalk-texture">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise"/>
+                <feColorMatrix in="noise" type="saturate" values="0" result="desaturatedNoise"/>
+                <feComponentTransfer in="desaturatedNoise" result="theNoise">
+                    <feFuncA type="table" tableValues="0 0 0.05 0"/>
+                </feComponentTransfer>
+                <feGaussianBlur in="theNoise" stdDeviation="0.5" result="blurredNoise"/>
+                <feBlend in="SourceGraphic" in2="blurredNoise" mode="multiply"/>
+            </filter>
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#1a2c5a; stop-opacity:0.2" />
+                <stop offset="100%" style="stop-color:#1a3c5a; stop-opacity:1" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div class="fixed top-6 left-6 z-50 flex flex-col gap-4 ui-controls">
+        <button onclick="event.stopPropagation(); toggleSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full p-3 shadow-lg border-2 border-indigo-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        </button>
+    </div>
+
+    <div id="make-wish-btn-container" class="fixed bottom-6 right-6 z-50 ui-controls">
+        <button onclick="event.stopPropagation(); openInputWishModal()" class="group flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--theme-accent)] to-yellow-500 text-slate-900 rounded-full py-3 px-6 shadow-[0_0_20px_rgba(244,225,109,0.5)] border-2 border-yellow-200 transform transition-transform hover:scale-105">
+            <span class="text-xl">✨</span>
+            <span class="font-bold font-cartoon">Make a Wish</span>
+        </button>
+    </div>
+
+    <!-- <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden ui-controls text-white" onclick="event.stopPropagation()">
+        <div class="bg-slate-800 border-2 border-slate-600 p-6 rounded-2xl max-w-sm w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-cartoon text-indigo-300">Customize Scene</h3>
+                <button onclick="toggleSettings()" class="text-slate-400 hover:text-white">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="input-person" class="settings-input w-full p-2 bg-slate-900 border border-slate-700 rounded text-slate-200" placeholder="Person Image URL">
+                <button onclick="applySettings()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold shadow-md">Apply</button>
+                <button onclick="resetSettings()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg text-slate-300">Reset</button>
+            </div>
+        </div>
+    </div> -->
+
+    <div id="input-wish-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden" onclick="event.stopPropagation()">
+        <div class="bg-[#172554] border-2 border-indigo-400 p-8 rounded-3xl max-w-md w-full mx-4 shadow-[0_0_50px_rgba(79,70,229,0.3)] relative">
+            <button onclick="closeInputWishModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div class="text-center mb-6">
+                <h3 class="text-3xl font-cartoon text-[var(--theme-accent)] mb-2">留下想说的话和祝福吧</h3>
+                <!-- <p class="text-indigo-200 text-sm">Send your wish to the shooting stars.</p> -->
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-indigo-300 text-sm font-bold mb-2 ml-1">昵称</label>
+                    <input type="text" id="wish-input-name" class="w-full p-3 bg-indigo-950/50 border border-indigo-500/50 rounded-xl text-white placeholder-indigo-400 focus:outline-none focus:border-[var(--theme-accent)] transition-colors" placeholder="...">
+                </div>
+                <div>
+                    <label class="block text-indigo-300 text-sm font-bold mb-2 ml-1">内容</label>
+                    <textarea id="wish-input-text" rows="3" class="w-full p-3 bg-indigo-950/50 border border-indigo-500/50 rounded-xl text-white placeholder-indigo-400 focus:outline-none focus:border-[var(--theme-accent)] transition-colors" placeholder="..."></textarea>
+                </div>
+                <button onclick="handleWishSubmit()" id="submit-wish-btn" class="w-full py-3 mt-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 rounded-xl text-white font-bold tracking-wide shadow-lg transition-all transform active:scale-95">
+                    Send to the Stars ✨
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="wish-modal" onclick="event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300">
+        <div class="bg-indigo-900/95 border-2 border-indigo-400 p-8 rounded-2xl max-w-sm w-full mx-4 text-center shadow-[0_0_40px_rgba(79,70,229,0.6)] transform transition-all scale-100 relative backdrop-blur-md">
+            <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-indigo-500 p-3 rounded-full border-4 border-indigo-900 shadow-lg">
+                <div class="text-2xl text-white">💫</div>
+            </div>
+            <!-- <h3 class="text-2xl font-cartoon text-[var(--theme-accent)] mb-4 mt-4">A Captured Wish</h3> -->
+            <p id="wish-text" class="text-xl text-white mb-2 font-semibold leading-relaxed font-sans italic">"..."</p>
+            <p id="wish-author" class="text-md text-indigo-300 mb-2 font-chinese-serif">-- Anonymous</p>
+            <p id="wish-date" class="text-xs text-indigo-400 mb-6 font-mono"></p>
+            
+            <button onclick="closeWishModal()" class="px-8 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-bold transition-transform hover:scale-105">Close</button>
+        </div>
+    </div>
+
+    <div class="fixed top-6 right-6 z-50 ui-controls text-white">
+        <button id="music-toggle" onclick="event.stopPropagation(); toggleMusic()" class="bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full p-3 border border-white/10 shadow-lg">
+            <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+            <svg id="icon-pause" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </button>
+        <audio id="bg-music" loop>
+            <source src="wave_stalerice.wav" type="audio/wav">
+        </audio>
+    </div>
+
+    <section id="sky-section" class="relative w-full h-screen overflow-hidden flex flex-col items-center justify-end text-white">
+        <div class="sky-viewport">
+            <div id="sky-layer" class="sky-layer"></div>
+            <div id="star-field" class="absolute inset-0 z-0 pointer-events-none"></div>
+            <div id="shooting-star-container" class="absolute inset-0 z-10 overflow-hidden pointer-events-none"></div>
+            <div id="sky-text-content" class="absolute top-24 left-0 right-0 text-center z-20 px-4 opacity-90 animate-pulse pointer-events-none">
+                <!-- <h1 class="text-4xl md:text-6xl font-cartoon mb-2 text-white drop-shadow-[0_4px_10px_rgba(255,255,255,0.3)]">STARDUST WISHES</h1>
+                <p class="text-lg text-indigo-100 font-bold drop-shadow-md tracking-wider">Tap the falling stars to see wishes!</p> -->
+                <!-- <p id="wish-counter-text" class="text-sm text-[var(--theme-accent)] mt-2 font-mono opacity-0 transition-opacity duration-1000">Connecting to stars...</p> -->
+            </div>
+            <!-- <div id="intro-title">2025</div>
+             -->
+            <div class="ocean-container" id="ocean-container">
+                <canvas id="sea-shine-canvas"></canvas>
+                <div id="sea-sprite" class="sea-sprite"></div>
+                <div class="ocean-surface"></div>
+            </div>
+            
+            <div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[18] pointer-events-none">
+                <img src="ship_copy.png" alt="Boat" class="w-full opacity-80 drop-shadow-lg filter brightness-75">
+            </div>
+
+            <div id="beach" class="beach">
+                <img src="transparent_beach_texture.png" alt="Beach Sand" class="beach-texture" onerror="this.style.display='none'">
+            </div>
+            
+            <div class="tide-wave-wrapper">
+                <svg id="tide-svg" class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1600 600" xmlns="http://www.w3.org/2000/svg">
+                    <g class="wave-group-1">
+                        <path d="M 0,290 C 100,285 150,295 220,288 C 290,281 350,300 430,292 C 510,284 570,278 650,285 C 730,292 790,305 880,298 C 970,291 1050,280 1140,288 C 1230,296 1310,310 1400,303 C 1490,296 1560,285 1600,288 L 1600,340 C 1560,345 1490,338 1400,343 C 1310,348 1230,355 1140,350 C 1050,345 970,335 880,342 C 790,349 730,358 650,352 C 570,346 510,338 430,345 C 350,352 290,362 220,356 C 150,350 100,342 0,346 Z" fill="url(#waveGrad)" />
+                        <g class="foam-layer">
+                            <ellipse class="foam-shape" cx="220" cy="340" rx="80" ry="7" fill="white" />
+                            <ellipse class="foam-shape" cx="650" cy="343" rx="90" ry="8" fill="white" />
+                            <ellipse class="foam-shape" cx="1140" cy="342" rx="85" ry="7" fill="white" />
+                        </g>
+                    </g>
+                    <g class="wave-group-2">
+                        <path d="M 0,293 C 110,288 160,298 240,291 C 320,284 380,300 465,293 C 550,286 610,280 690,287 C 770,294 830,307 920,300 C 1010,293 1090,282 1180,290 C 1270,298 1350,312 1440,305 C 1530,298 1580,287 1600,291 L 1600,345 C 1580,349 1530,343 1440,346 C 1350,349 1270,353 1180,350 C 1090,347 1010,341 920,346 C 830,351 770,356 690,352 C 610,348 550,343 465,346 C 380,349 320,355 240,351 C 160,347 110,346 0,348 Z" fill="url(#waveGrad)" />
+                        <g class="foam-layer">
+                            <ellipse class="foam-shape" cx="240" cy="345" rx="85" ry="7" fill="white" />
+                            <ellipse class="foam-shape" cx="690" cy="346" rx="92" ry="8" fill="white" />
+                            <ellipse class="foam-shape" cx="1180" cy="346" rx="87" ry="7" fill="white" />
+                        </g>
+                    </g>
+                    <rect x="0" y="340" width="1600" height="260" fill="#f5d197" opacity="0.3"/>
+                </svg>
+            </div>
+
+            <div id="extra-img-layer" class="absolute z-[17] bottom-[5vh] left-1/2 -translate-x-[52%] w-[2600px] h-[150px] pointer-events-none">
+                 <img src="beachbg1_copy.png" alt="Prop" class="w-full h-full object-contain opacity-80">
+            </div>
+
+            <div class="person-container" style="width: 200px; height: 300px;">
+                <img id="person-custom" src="chara_copy.png" alt="Character" class="w-full h-full object-cover drop-shadow-2xl opacity-100">
+            </div>
+            
+            <div id="companion-container" class="absolute z-[22] bottom-[6vh] left-[calc(50%-80px)] w-60 h-60 pointer-events-none">
+                <img src="phen0_copy.png" alt="Companion 1" class="absolute inset-0 w-full h-full object-contain">
+                <img src="phen2_copy.png" alt="Companion 2" class="absolute inset-0 w-full h-full object-contain animate-double-blink">
+            </div>
+            
+            <div id="wandering-creature" class="absolute z-[19] bottom-[12vh] left-1/2 ml-[300px] w-20 h-20 animate-wander pointer-events-none">
+                <img src="crab_copy.png" alt="Creature" class="w-full h-full object-contain drop-shadow-lg">
+            </div>
+        </div>
+    </section>
+
+    <section id="timeline-section" class="min-h-[150vh] py-20 relative">
+        <div class="bg-glow-radial"></div>
+        <div id="chalk-particles-timeline" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+        <div id="bg-stars-timeline" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="text-center mb-16 relative z-30">
+                <!-- <h2 class="text-4xl md:text-5xl font-cartoon text-[var(--theme-accent)]" style="text-shadow: 2px 2px 0px rgba(0,0,0,0.5);">Time Travel</h2>
+                <p class="text-slate-300 mt-2 font-bold">Connect the dots to relive the fun</p> -->
+            </div>
+
+            <div class="relative w-full max-w-4xl mx-auto h-[1200px]" id="timeline-container">
+                <svg id="timeline-svg" class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 0; overflow: visible;"></svg>
+                <div id="timeline-points-layer" class="absolute inset-0 z-10 w-full h-full"></div>
+            </div>
+        </div>
+
+        <div id="timeline-modal" onclick="event.stopPropagation()" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-md hidden opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white border-4 border-[var(--theme-accent)] rounded-3xl overflow-hidden max-w-2xl w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="timeline-modal-content">
+                <div class="flex flex-col md:flex-row items-center p-8 gap-8 relative h-full">
+                    <button onclick="closeTimelineModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <div class="shrink-0">
+                        <img id="modal-avatar" src="" alt="Avatar" class="w-40 h-40 rounded-full object-cover border-4 border-[var(--theme-accent)] shadow-[0_0_15px_rgba(244,225,109,0.4)]">
+                    </div>
+                    <div class="flex-grow text-left">
+                        <div class="mb-2">
+                            <span id="modal-date" class="px-4 py-1 bg-[var(--theme-accent)] text-slate-900 font-bold rounded-full shadow-md font-cartoon text-sm"></span>
+                        </div>
+                        <h3 id="modal-title" class="text-3xl font-cartoon text-slate-800 mb-4"></h3>
+                        <p id="modal-desc" class="text-slate-600 leading-relaxed font-semibold text-lg"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="greeting-section" class="relative w-full h-screen flex flex-col items-center justify-center hidden transition-opacity duration-1000 opacity-0">
+        <div class="bg-glow-radial"></div>
+        <div id="chalk-particles-greeting" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+        <div id="bg-stars-greeting" class="absolute inset-0 w-full h-full pointer-events-none z-0"></div>
+
+        <div class="text-2xl leading-relaxed space-y-4">
+        <!--  <div class="text-2xl leading-relaxed space-y-4 text-center max-w-2xl px-6 relative z-10"> -->
+            <p>回望2025，这一年虽也经历风雨，却依旧精彩而快活。</p>
+            <p>一个又一个目标被达成，风华渐长，榜上留名。</p>
+            <p>旅途中，伙伴们为游历二百天送上祝贺，默默支持的大家同样珍贵。与姜丝咕咕判老大的羁绊，也在时光中愈发清晰而深厚。</p>
+            <p>展望新的一年，愿继续驶向更辽阔的图景，万事胜意，岁岁平安。</p>
+            <p>愿我们未来，仍能相伴于燕云世界之中，创造美好，分享快乐。</p>
+        </div>
+    </section>
+
+    <script>
+        let introActive = true;
+        let visibleDotIndex = 0; 
+        let isJourneyComplete = false;
+        
+        function startJourney() {
+            if(!introActive) return;
+            introActive = false;
+            document.body.classList.remove('intro-mode');
+            
+            const music = document.getElementById('bg-music');
+            music.play().then(() => {
+                document.getElementById('icon-play').classList.add('hidden');
+                document.getElementById('icon-pause').classList.remove('hidden');
+            }).catch(e => {
+                console.log("Auto-play prevented by browser. User must toggle manually.");
+            });
+
+            setTimeout(() => {
+                const stars = document.querySelectorAll('.star');
+                stars.forEach(star => {
+                    const delay = Math.random() * 2000;
+                    setTimeout(() => { star.classList.add('revealed'); }, delay);
+                });
+            }, 2500); 
+
+            setTimeout(() => {
+               setInterval(spawnShootingStar, 3000 + Math.random() * 4000);
+               spawnShootingStar(); 
+            }, 8000);
+        }
+
+        function toggleMusic() {
+            const music = document.getElementById('bg-music');
+            const play = document.getElementById('icon-play');
+            const pause = document.getElementById('icon-pause');
+            if (music.paused) {
+                music.play(); play.classList.add('hidden'); pause.classList.remove('hidden');
+            } else {
+                music.pause(); play.classList.remove('hidden'); pause.classList.add('hidden');
+            }
+        }
+        function toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+        
+        const starField = document.getElementById('star-field');
+        function createStars() {
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const x = Math.random() * 100;
+                const y = Math.random() * 65; 
+                const size = 1 + Math.random() * 2; 
+                const duration = 2 + Math.random() * 4;
+                const delay = Math.random() * 5;
+                star.style.left = `${x}%`; star.style.top = `${y}%`;
+                star.style.width = `${size}px`; star.style.height = `${size}px`;
+                star.style.setProperty('--duration', `${duration}s`);
+                star.style.setProperty('--delay', `${delay}s`);
+                starField.appendChild(star);
+            }
+        }
+        
+        // --- SHOOTING STAR & WISH LOGIC ---
+        const defaultWishes = ["Courage!", "Good vibes!", "Great job!", "Love yourself!", "Adventure!", "Stay happy.", "Big surprise!", "Let go.", "You are strong!"];
+        const shootingStarContainer = document.getElementById('shooting-star-container');
+
+        function spawnShootingStar() {
+            const star = document.createElement('div'); star.classList.add('shooting-star');
+            const startX = 80 + Math.random() * 20; const startY = Math.random() * 30; const width = 100 + Math.random() * 120;
+            star.style.width = `${width}px`; star.style.left = `${startX}%`; star.style.top = `${startY}%`;
+            const duration = 3 + Math.random() * 2; 
+            star.style.animation = `shoot-blink ${duration}s linear forwards`;
+            const hitbox = document.createElement('div'); hitbox.classList.add('shooting-star-hitbox'); star.appendChild(hitbox);
+            
+            // Interaction: Open Wish from DB
+            star.addEventListener('click', (e) => {
+                e.stopPropagation();
+                let wishContent = "A secret wish...";
+                let wishAuthor = "Anonymous";
+                let wishDateStr = "";
+
+                if (window.userWishes && window.userWishes.length > 0) {
+                    // Bias towards more recent wishes (first in array)
+                    // Take top 5 or fewer
+                    const poolSize = Math.min(window.userWishes.length, 5);
+                    const idx = Math.floor(Math.random() * poolSize);
+                    const selected = window.userWishes[idx];
+                    
+                    wishContent = selected.wish;
+                    wishAuthor = selected.name;
+                    
+                    // Convert Timestamp to String
+                    if(selected.timestamp) {
+                        const d = new Date(selected.timestamp.seconds * 1000);
+                        wishDateStr = d.toLocaleDateString() + " " + d.toLocaleTimeString();
+                    }
+                } else {
+                    wishContent = defaultWishes[Math.floor(Math.random() * defaultWishes.length)];
+                    wishAuthor = "The Universe";
+                }
+
+                document.getElementById('wish-text').innerText = `"${wishContent}"`;
+                document.getElementById('wish-author').innerText = `-- ${wishAuthor}`;
+                document.getElementById('wish-date').innerText = wishDateStr; 
+                document.getElementById('wish-modal').classList.remove('hidden');
+                
+                star.style.opacity = '0';
+            });
+            shootingStarContainer.appendChild(star);
+            setTimeout(() => { if(star.parentElement) star.remove(); }, duration * 1000);
+        }
+
+        function closeWishModal() { document.getElementById('wish-modal').classList.add('hidden'); }
+        
+        // --- INPUT WISH LOGIC ---
+        function openInputWishModal() {
+             document.getElementById('input-wish-modal').classList.remove('hidden');
+        }
+        function closeInputWishModal() {
+             document.getElementById('input-wish-modal').classList.add('hidden');
+        }
+        
+        async function handleWishSubmit() {
+            const nameInput = document.getElementById('wish-input-name');
+            const wishInput = document.getElementById('wish-input-text');
+            const submitBtn = document.getElementById('submit-wish-btn');
+            
+            const name = nameInput.value.trim();
+            const wish = wishInput.value.trim();
+            
+            if (!wish) {
+                alert("Please enter a wish!"); 
+                return;
+            }
+            
+            submitBtn.innerText = "Sending...";
+            submitBtn.disabled = true;
+
+            const result = await window.submitWishToFire(name, wish);
+            
+            submitBtn.innerText = "Send to the Stars ✨";
+            submitBtn.disabled = false;
+            
+            if (result.success) {
+                wishInput.value = "";
+                closeInputWishModal();
+                document.getElementById('wish-text').innerText = "发送成功!";
+                document.getElementById('wish-author').innerText = "";
+                document.getElementById('wish-date').innerText = "刚刚";
+                document.getElementById('wish-modal').classList.remove('hidden');
+            } else {
+                alert("Error sending wish: " + (result.error || "Unknown"));
+            }
+        }
+
+        // --- OCEAN ANIMATION ---
+        const seaCanvas = document.getElementById('sea-shine-canvas');
+        const seaCtx = seaCanvas.getContext('2d');
+        const oceanContainer = document.getElementById('ocean-container');
+
+        let seaWidth, seaHeight;
+        let particles = [];
+        const particleCount = 2000; 
+
+        const config = {
+            horizonY: -0.2, 
+            swaySpeed: 0.001,
+            swayAmp: 0.1, 
+            baseColor: { r: 0, g: 30, b: 60 },
+            highlightColor: { r: 200, g: 250, b: 240 } 
+        };
+
+        class Particle {
+            constructor() { this.init(); }
+            init() {
+                const yBias = Math.pow(Math.random(), 3); 
+                const effectiveHeight = seaHeight * 1.5; 
+                this.y = (config.horizonY * seaHeight) + (yBias * effectiveHeight);
+                this.y = Math.max(0, Math.min(seaHeight, this.y));
+                this.x = Math.random() * seaWidth;
+                this.phase = Math.random() * Math.PI * 2;
+                this.size = 1 + (yBias * 3); 
+                this.length = 4 + (yBias * 20); 
+            }
+            update(time, lightX) {
+                this.x += Math.sin(time * 0.5 + this.y * 0.01) * 0.2;
+                if (this.x > seaWidth) this.x = 0;
+                if (this.x < 0) this.x = seaWidth;
+                const distToLight = Math.abs(this.x - lightX);
+                const yNorm = this.y / seaHeight;
+                const lightSpread = 100 + (yNorm * 200); 
+                let intensity = Math.exp(-(distToLight * distToLight) / (2 * lightSpread * lightSpread));
+                const beachFade = Math.max(0, 1 - (yNorm * 1.5)); 
+                intensity *= beachFade;
+                const twinkle = Math.sin(time * 3 + this.phase);
+                let ambient = 0.05 * beachFade; 
+                if (intensity < 0.01) intensity = ambient; 
+                if (intensity > 0.2) intensity += twinkle * 0.2;
+                intensity = Math.max(0, Math.min(1, intensity));
+                return intensity;
+            }
+            draw(intensity) {
+                const r = config.baseColor.r + (config.highlightColor.r - config.baseColor.r) * intensity;
+                const g = config.baseColor.g + (config.highlightColor.g - config.baseColor.g) * intensity;
+                const b = config.baseColor.b + (config.highlightColor.b - config.baseColor.b) * intensity;
+                const a = 0.3 + (intensity * 0.7);
+                seaCtx.fillStyle = `rgba(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)}, ${a})`;
+                seaCtx.beginPath();
+                seaCtx.ellipse(this.x, this.y, this.length / 2, this.size / 2, 0, 0, Math.PI * 2);
+                seaCtx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) particles.push(new Particle());
+        }
+
+        function resizeSea() {
+            seaWidth = seaCanvas.width = oceanContainer.offsetWidth;
+            seaHeight = seaCanvas.height = oceanContainer.offsetHeight;
+            initParticles();
+        }
+        window.addEventListener('resize', resizeSea);
+
+        function animateSea(t) {
+            const time = t * 0.001; 
+            seaCtx.clearRect(0, 0, seaWidth, seaHeight);
+            const centerX = seaWidth / 2;
+            const swayOffset = Math.sin(time * 0.5) * (seaWidth * config.swayAmp);
+            const currentLightX = centerX + swayOffset;
+            particles.forEach(p => {
+                const intensity = p.update(time, currentLightX);
+                p.draw(intensity);
+            });
+            requestAnimationFrame(animateSea);
+        }
+
+        resizeSea();
+        requestAnimationFrame(animateSea);
+
+        // --- TIMELINE LOGIC ---
+        const timelineData = [
+            {
+                id: 1, date: "Apr", title: "出发",
+                desc: "暮春时分，忙碌的学习生活暂告一段落。是怎样的契机，让你点开了《燕云十六声》？那一刻，又怀着怎样的期待呢？若能与好友同行，想必旅途也会多几分欢乐。\n\n初入江湖，一个带着少年意气的少东家。一凡风波之中，历经情感纷杂，最终怀揣着寻找故人的执念与对江湖的向往，踏入了一个更加复杂，却也精彩的武侠世界。",
+                img: "apr.png", stampDate: "2025.04", stampText: "APRIL"
+            },
+            {
+                id: 2, date: "Aug", title: "竞选",
+                desc: "这个夏天，是什么促使你第一次踏上竞选的舞台？\n\n从最初的发帖询问，到竞选预热，再到那忙碌而热闹的一周，最终摘得金色徽章。“不动中国，不劳济师”，你成为了狂澜门派的都统。这个底蕴深厚的门派，仿佛在这一刻被重新唤醒、被铭记。\n\n而竞选之路上的点点滴滴，那些相遇的人、经历的事，也为这段旅程增添了别样而温暖的触感。",
+                img: "aug.png", stampDate: "2025.08", stampText: "AUGUST"
+            },
+            {
+                id: 3, date: "Aug", title: "七夕",
+                desc: "七夕恰逢好友兼侠缘生辰。纵使身处异地，网络一线牵，情谊与心意依旧清晰可感。\n\n感谢好友在江湖旅程中的一路相伴，同时与大家一同分享这份喜悦。看着众人与侠缘相遇、相知、相处的点滴，才发现这世间，确实因情而多彩美好。\n\n愿有情人终成眷属，岁月悠长，情意不散。",
+                img: "sep.png", stampDate: "2025.08", stampText: "AUGUST"
+            },
+            {
+                id: 4, date: "Oct", title: "烟花",
+                desc: "从最初的江湖独行，到如今各路侠客相伴左右。短短数月，因缘际会，彼此相识。\n\n此刻烟花绽放，如同情谊般热烈而璀璨。月色之下，大家怀揣着相同的心绪，静静感受着这份难得的美好。",
+                img: "oct.PNG", stampDate: "2025.10", stampText: "OCTOBER"
+            },
+            {
+                id: 5, date: "Nov", title: "扬帆",
+                desc: "“因为它就在那里。”\n\n终究，这个目标实现了。它既是一座里程碑，也是心绪与记忆的凝结。\n\n夜色之中，船只扬帆启航，带着独属于自己的风帆，以水观奇景，为此世祈福。",
+                img: "nov.png", stampDate: "2025.11", stampText: "NOVEMBER"
+            }
+        ];
+
+        const timelineContainer = document.getElementById('timeline-container');
+        const svgLayer = document.getElementById('timeline-svg');
+        const pointsLayer = document.getElementById('timeline-points-layer');
+
+        function drawTimeline() {
+            pointsLayer.innerHTML = '';
+            svgLayer.innerHTML = ''; 
+            const width = timelineContainer.offsetWidth;
+            const points = timelineData.length;
+            const startY = 80;
+            const verticalSpacing = 200; 
+            const sideMargin = width * 0.28; 
+            const radius = 60; 
+            let dotCoords = [];
+
+            for(let i = 0; i < points; i++) {
+                const y = startY + (i * verticalSpacing);
+                const x = (i % 2 === 0) ? sideMargin : (width - sideMargin);
+                const side = (i % 2 === 0) ? 'left' : 'right';
+                dotCoords.push({x, y, data: timelineData[i], index: i, side});
+            }
+
+            for(let i = 0; i < dotCoords.length - 1; i++) {
+                const curr = dotCoords[i];
+                const next = dotCoords[i+1];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                let d = "";
+
+                if (curr.side === 'left') {
+                    const turnStartX = width - sideMargin - radius;
+                    d += `M ${curr.x} ${curr.y} L ${turnStartX} ${curr.y} A ${radius} ${radius} 0 0 1 ${next.x} ${next.y}`;
+                } else {
+                    const turnStartX = sideMargin + radius;
+                    d += `M ${curr.x} ${curr.y} L ${turnStartX} ${curr.y} A ${radius} ${radius} 0 0 0 ${next.x} ${next.y}`;
+                }
+
+                path.setAttribute("d", d);
+                path.classList.add("path-segment");
+                svgLayer.appendChild(path);
+                const len = path.getTotalLength();
+                path.style.strokeDasharray = "15 8"; 
+                path.style.strokeDashoffset = len; 
+
+                const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+                mask.id = `mask-${i}`;
+                const maskPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                maskPath.setAttribute("d", d);
+                maskPath.setAttribute("stroke", "white");
+                maskPath.setAttribute("stroke-width", "12"); 
+                maskPath.setAttribute("fill", "none");
+                maskPath.setAttribute("stroke-dasharray", len);
+                maskPath.setAttribute("stroke-dashoffset", len); 
+                maskPath.id = `mask-path-${i}`;
+                mask.appendChild(maskPath);
+                svgLayer.appendChild(mask);
+                path.setAttribute("mask", `url(#mask-${i})`);
+            }
+
+            dotCoords.forEach((coord, i) => {
+                const dot = document.createElement('div');
+                dot.className = 'timeline-dot absolute w-6 h-6 rounded-full shadow-md z-20';
+                dot.style.left = `${coord.x}px`; dot.style.top = `${coord.y}px`; dot.id = `dot-${i}`;
+                if (i === 0) dot.classList.add('visible');
+
+                const avatar = document.createElement('div');
+                avatar.className = 'dot-avatar z-10';
+                const curveTopId = `curve-top-${i}`;
+                const curveBottomId = `curve-bottom-${i}`;
+                
+                avatar.innerHTML = `
+                    <div class="absolute inset-0 flex items-center justify-center" style="z-index: 1;">
+                        <div style="width: 170px; height: 170px; background: rgba(244, 225, 109, 0.6); border-radius: 50%;"></div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center" style="z-index: 5;">
+                        <img src="${coord.data.img}" class="dot-avatar-img" alt="memory">
+                    </div>
+                    <svg viewBox="0 0 240 240" class="w-full h-full absolute inset-0 pointer-events-none" style="z-index: 10;">
+                        <defs>
+                            <path id="${curveTopId}" d="M 20,120 A 100,100 0 0,1 220,120" />
+                            <path id="${curveBottomId}" d="M 20,120 A 100,100 0 0,0 220,120" />
+                        </defs>
+                        <circle cx="120" cy="120" r="115" fill="none" stroke="var(--theme-accent)" stroke-width="4.5" filter="url(#chalk-texture)" />
+                        <circle cx="120" cy="120" r="85" fill="none" stroke="var(--theme-accent)" stroke-width="3" filter="url(#chalk-texture)" />
+                        <text fill="var(--theme-accent)" font-family="Fredoka One" font-size="20" letter-spacing="2" filter="url(#chalk-texture-small)" dominant-baseline="auto">
+                            <textPath href="#${curveTopId}" startOffset="50%" text-anchor="middle">${coord.data.stampDate}</textPath>
+                        </text>
+                        <text fill="var(--theme-accent)" font-family="'Noto Serif SC', serif" font-size="16" font-weight="bold" letter-spacing="3" filter="url(#chalk-texture-small)" dominant-baseline="middle">
+                            <textPath href="#${curveBottomId}" startOffset="50%" text-anchor="middle">${coord.data.stampText}</textPath>
+                        </text>
+                    </svg>
+                `;
+                avatar.id = `avatar-${i}`;
+                if (coord.side === 'right') { avatar.style.left = '70px'; } else { avatar.style.right = '70px'; }
+                dot.appendChild(avatar);
+                dot.addEventListener('click', (e) => { e.stopPropagation(); handleDotClick(i, coord.data); });
+                pointsLayer.appendChild(dot);
+            });
+        }
+
+        function handleDotClick(index, data) {
+            const avatar = document.getElementById(`avatar-${index}`);
+            if(avatar) avatar.classList.add('show');
+            openTimelineModal(data);
+            if (index === visibleDotIndex && index < timelineData.length - 1) {
+                const maskPath = document.getElementById(`mask-path-${index}`);
+                const nextDot = document.getElementById(`dot-${index+1}`);
+                if(maskPath) {
+                    maskPath.style.transition = "stroke-dashoffset 2s linear";
+                    maskPath.style.strokeDashoffset = "0"; 
+                }
+                setTimeout(() => {
+                    if(nextDot) nextDot.classList.add('visible');
+                    visibleDotIndex++;
+                }, 2000); 
+            }
+            if (index === timelineData.length - 1) {
+                isJourneyComplete = true;
+                const section3 = document.getElementById('greeting-section');
+                section3.classList.remove('hidden');
+                requestAnimationFrame(() => { section3.classList.remove('opacity-0'); });
+            }
+        }
+
+        function createChalkParticles(containerId) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            for(let i=0; i<30; i++) {
+                const p = document.createElement('div');
+                p.classList.add('chalk-particle');
+                const size = Math.random() * 6 + 2;
+                p.style.width = size + 'px'; p.style.height = size + 'px';
+                p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%';
+                p.style.setProperty('--duration', (Math.random() * 10 + 5) + 's');
+                container.appendChild(p);
+            }
+        }
+
+        function createBackgroundStars(containerId, count) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            const starSVGContent = `
+                <svg class="bg-star" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: SIZEpx; height: SIZEpx; left: LEFTPOS%; top: TOPPOS%; --delay: DELAYs;">
+                    <polygon points="100,20 115,85 180,100 115,115 100,180 85,115 20,100 85,85"/>
+                </svg>
+            `;
+            for(let i=0; i<count; i++) {
+                const size = Math.floor(Math.random() * 30) + 20;
+                const left = Math.floor(Math.random() * 80) + 10;
+                const top = Math.floor(Math.random() * 80) + 10;
+                const delay = Math.random() * 3;
+                let html = starSVGContent.replace(/SIZE/g, size).replace('LEFTPOS', left).replace('TOPPOS', top).replace('DELAY', delay);
+                container.insertAdjacentHTML('beforeend', html);
+            }
+        }
+
+        function openTimelineModal(data) {
+            const m = document.getElementById('timeline-modal');
+            document.getElementById('modal-title').innerText = data.title;
+            document.getElementById('modal-desc').innerText = data.desc;
+            document.getElementById('modal-date').innerText = data.date;
+            const avatarImg = document.getElementById('modal-avatar');
+            if (avatarImg) avatarImg.src = data.img;
+            m.classList.remove('hidden', 'pointer-events-none');
+            requestAnimationFrame(() => { m.classList.remove('opacity-0'); document.getElementById('timeline-modal-content').classList.remove('scale-95'); });
+        }
+        
+        function closeTimelineModal() {
+            const m = document.getElementById('timeline-modal');
+            m.classList.add('opacity-0');
+            setTimeout(() => {
+                m.classList.add('hidden', 'pointer-events-none');
+                if(isJourneyComplete) {
+                    setTimeout(() => { document.getElementById('greeting-section').scrollIntoView({ behavior: 'smooth' }); }, 500);
+                }
+            }, 300);
+        }
+
+        createStars();
+        drawTimeline();
+        createChalkParticles('chalk-particles-timeline');
+        createChalkParticles('chalk-particles-greeting');
+        createBackgroundStars('bg-stars-timeline', 15);
+        createBackgroundStars('bg-stars-greeting', 20);
+        
+        let resizeT;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeT);
+            resizeT = setTimeout(() => { visibleDotIndex = 0; drawTimeline(); }, 100);
+        });
+
+        function applySettings() { 
+            const url = document.getElementById('input-person').value;
+            if(url) document.getElementById('person-custom').src = url;
+            toggleSettings(); 
+        }
+        function resetSettings() { document.getElementById('person-custom').src = "chara_seph.JPG"; toggleSettings(); }
+    </script>
+</body>
+</html>
