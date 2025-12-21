@@ -455,27 +455,29 @@ Put your HTML text here<!DOCTYPE html>
 <div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[18] pointer-events-none">
     
     <div class="relative w-full z-10">
-        <img src="ship0.png" alt="Boat V1" class="w-full opacity-80 drop-shadow-lg filter brightness-75">
-        
-        <img id="boat-v2" src="ship1.png" alt="Boat V2" 
+        <img src="ship_copy.png" alt="Boat V1" class="w-full opacity-80 drop-shadow-lg filter brightness-75">
+        <img id="boat-v2" src="ship_copy_2.png" alt="Boat V2" 
              class="absolute top-0 left-0 w-full opacity-0 drop-shadow-lg filter brightness-75 transition-opacity duration-1000">
     </div>
     
     <svg id="boat-splash" 
-         class="absolute bottom-[5px] left-0 w-full h-[30px] z-0 opacity-80 mix-blend-screen" 
+         class="absolute bottom-[7px] left-0 w-full h-[30px] z-0 opacity-50 mix-blend-screen" 
          viewBox="0 0 100 30" 
          preserveAspectRatio="none">
         <defs>
             <linearGradient id="splashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:#22d3ee; stop-opacity:0.4" />
-                <stop offset="50%" style="stop-color:#a5f3fc; stop-opacity:0.9" />
-                <stop offset="100%" style="stop-color:#22d3ee; stop-opacity:0.4" />
+                <stop offset="0%" style="stop-color:#f0f9ff; stop-opacity:0" />
+                
+                <stop offset="50%" style="stop-color:#f0f9ff; stop-opacity:0.8" />
+                
+                <stop offset="100%" style="stop-color:#f0f9ff; stop-opacity:0" />
             </linearGradient>
 
             <filter id="splash-blur">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="0.3" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="0.4" />
             </filter>
         </defs>
+        
         <path id="splash-path" 
               fill="url(#splashGrad)" 
               filter="url(#splash-blur)"
