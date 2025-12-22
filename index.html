@@ -104,9 +104,15 @@
 
         // Start App
         initApp();
+        
     </script>
 
     <style>
+    /* Add inside <style> */
+#season-canvas {
+    image-rendering: pixelated; /* Ensures sharp edges when scaled up */
+    image-rendering: crisp-edges;
+}
     /* Add this inside your <style> tag */
 @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
 
@@ -161,13 +167,15 @@
         body.intro-mode .sky-viewport { transform: none; }
 
         body.intro-mode .ocean-container, body.intro-mode .beach, body.intro-mode .tide-wave-wrapper { opacity: 0; pointer-events: none; }
-        body.intro-mode .sky-layer, 
-        body.intro-mode #star-field, 
-        body.intro-mode #shooting-star-container, 
-        body.intro-mode .ui-controls, 
-        body.intro-mode #sky-text-content,
-        body.intro-mode #make-wish-btn-container { opacity: 0; pointer-events: none; }
         
+        /* Ensure sky and stars are HIDDEN when in intro mode */
+body.intro-mode .sky-layer, 
+body.intro-mode #star-field, 
+body.intro-mode #shooting-star-container, 
+body.intro-mode .ui-controls, 
+body.intro-mode #sky-text-content,
+body.intro-mode #make-wish-btn-container { opacity: 0; pointer-events: none; }
+
         body.intro-mode #extra-img-layer,
         body.intro-mode #companion-container,
         body.intro-mode #wandering-creature,
@@ -460,73 +468,57 @@ body.intro-mode #intro-msg {
         </audio>
     </div>
 
-    <section id="sky-section" class="relative w-full h-screen overflow-hidden flex flex-col items-center justify-end text-white">
+
         <!--<div class="sky-viewport">-->
+<section id="sky-section" class="relative w-full h-screen overflow-hidden flex flex-col items-center justify-end text-white">
         <div class="sky-viewport">
-    <div id="sky-layer" class="sky-layer"></div>
-    <div id="star-field" class="absolute inset-0 z-0 pointer-events-none"></div>
-    <div id="shooting-star-container" class="absolute inset-0 z-10 overflow-hidden pointer-events-none"></div>
-    
-    <div id="sky-text-content" class="absolute top-24 left-0 right-0 text-center z-20 px-4 opacity-90 animate-pulse pointer-events-none">
-        </div>
-
-    <div id="intro-msg">
-        <p class="font-pixel text-white-200 text-sm md:text-base animate-pulse drop-shadow-[0_0_5px_rgba(255,255,255,0.0)]">
-            感谢相遇，记录我们一同走过的2025
-        </p>
-    </div>
-
-            
             <div id="sky-layer" class="sky-layer"></div>
             <div id="star-field" class="absolute inset-0 z-0 pointer-events-none"></div>
             <div id="shooting-star-container" class="absolute inset-0 z-10 overflow-hidden pointer-events-none"></div>
-            <div id="sky-text-content" class="absolute top-24 left-0 right-0 text-center z-20 px-4 opacity-90 animate-pulse pointer-events-none">
-                <!-- <h1 class="text-4xl md:text-6xl font-cartoon mb-2 text-white drop-shadow-[0_4px_10px_rgba(255,255,255,0.3)]">STARDUST WISHES</h1>
-                <p class="text-lg text-indigo-100 font-bold drop-shadow-md tracking-wider">Tap the falling stars to see wishes!</p> -->
-                <!-- <p id="wish-counter-text" class="text-sm text-[var(--theme-accent)] mt-2 font-mono opacity-0 transition-opacity duration-1000">Connecting to stars...</p> -->
+            
+            <div id="intro-msg">
+                <p class="font-pixel text-indigo-200 text-sm md:text-base animate-pulse drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
+                    感谢相遇，记录我们一同走过的 2025
+                </p>
             </div>
-            <!-- <div id="intro-title">2025</div>
-             -->
+
             <div class="ocean-container" id="ocean-container">
                 <canvas id="sea-shine-canvas"></canvas>
                 <div id="sea-sprite" class="sea-sprite"></div>
                 <div class="ocean-surface"></div>
             </div>
             
-<div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[16] pointer-events-none">
-    
-    <img src="ship_copy.png" alt="Boat" class="w-full opacity-80 drop-shadow-lg filter brightness-75 relative z-10">
-    
-    <svg id="boat-splash" 
-         class="absolute bottom-[3px] left-0 w-full h-[30px] z-0 opacity-50 mix-blend-screen" 
-         viewBox="0 0 100 30" 
-         preserveAspectRatio="none">
-        <defs>
-            <linearGradient id="splashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:#f0f9ff; stop-opacity:0" />
-                <stop offset="50%" style="stop-color:#f0f9ff; stop-opacity:0.8" />
-                <stop offset="100%" style="stop-color:#f0f9ff; stop-opacity:0" />
-            </linearGradient>
+            <div id="boat-container" class="absolute bottom-[20vh] left-1/2 w-60 animate-boat z-[16] pointer-events-none">
+                <img src="ship_copy.png" alt="Boat" class="w-full opacity-80 drop-shadow-lg filter brightness-75 relative z-10">
+                <svg id="boat-splash" 
+                     class="absolute bottom-[3px] left-0 w-full h-[30px] z-0 opacity-50 mix-blend-screen" 
+                     viewBox="0 0 100 30" 
+                     preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="splashGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#f0f9ff; stop-opacity:0" />
+                            <stop offset="50%" style="stop-color:#f0f9ff; stop-opacity:0.8" />
+                            <stop offset="100%" style="stop-color:#f0f9ff; stop-opacity:0" />
+                        </linearGradient>
+                        <filter id="splash-blur">
+                            <feGaussianBlur in="SourceGraphic" stdDeviation="0.4" />
+                        </filter>
+                    </defs>
+                    <path id="splash-path" 
+                          fill="url(#splashGrad)" 
+                          filter="url(#splash-blur)"
+                          d="" 
+                          style="transition: d 1s ease-in-out;">
+                    </path>
+                </svg>
+            </div>
 
-            <filter id="splash-blur">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="0.4" />
-            </filter>
-        </defs>
-        
-        <path id="splash-path" 
-              fill="url(#splashGrad)" 
-              filter="url(#splash-blur)"
-              d="" 
-              style="transition: d 1s ease-in-out;">
-        </path>
-    </svg>
-</div>
             <div id="beach" class="beach">
                 <img src="transparent_beach_texture.png" alt="Beach Sand" class="beach-texture" onerror="this.style.display='none'">
             </div>
             
             <div class="tide-wave-wrapper">
-                <svg id="tide-svg" class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1600 600" xmlns="http://www.w3.org/2000/svg">
+                 <svg id="tide-svg" class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1600 600" xmlns="http://www.w3.org/2000/svg">
                     <g class="wave-group-1">
                         <path d="M 0,290 C 100,285 150,295 220,288 C 290,281 350,300 430,292 C 510,284 570,278 650,285 C 730,292 790,305 880,298 C 970,291 1050,280 1140,288 C 1230,296 1310,310 1400,303 C 1490,296 1560,285 1600,288 L 1600,340 C 1560,345 1490,338 1400,343 C 1310,348 1230,355 1140,350 C 1050,345 970,335 880,342 C 790,349 730,358 650,352 C 570,346 510,338 430,345 C 350,352 290,362 220,356 C 150,350 100,342 0,346 Z" fill="url(#waveGrad)" />
                         <g class="foam-layer">
@@ -564,6 +556,7 @@ body.intro-mode #intro-msg {
                 <img src="crab_copy.png" alt="Creature" class="w-full h-full object-contain drop-shadow-lg">
             </div>
         </div>
+    </section>
     </section>
 
     <section id="timeline-section" class="min-h-[150vh] py-20 relative">
